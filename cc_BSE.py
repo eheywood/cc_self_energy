@@ -9,7 +9,9 @@ eV_to_Hartree = 0.0367493
 
 def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf).run()
+    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
+
+    print(mycc.e_tot)
     mo = mycc.mo_coeff
 
     print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
@@ -22,6 +24,7 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     n_vir = t2.shape[2]
 
     t_ijab = t2
+    print(t2.reshape(-1))
     t_ijba = -np.einsum("ijab->ijba", t2,optimize='optimal')
 
     t2_spin = np.zeros((n_occ*2,n_occ*2,n_vir*2,n_vir*2))
@@ -32,7 +35,7 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     t2_spin[n_occ:,:n_occ,:n_vir,n_vir:] = t_ijba
     t2_spin[:n_occ,n_occ:,n_vir:,:n_vir] = t_ijba
 
-    print(t2_spin)
+    # print(t2_spin)
     return mo, t2_spin
     
 def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
@@ -83,8 +86,11 @@ if __name__ == "__main__":
                 unit="Bohr")
     
     # get molecular orbitals and t2 amplitudes
-    mo,t2 = bccd_t2_amps(mol)
+    mo,t2 = bccd_t2_amps(mol)   
     core_spinorbs, vir_spinorbs = get_spinorbs(mo)
+    n_occ = core_spinorbs.shape[1]
+    n_vir = vir_spinorbs.shape[1]
+
     print(t2.shape)
     # Build electron repulsion integrals
     _, eri_ao = spinor_one_and_two_e_int(mol)                       # Find eri in spinor form
@@ -99,14 +105,30 @@ if __name__ == "__main__":
     ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
 
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
-    print(occ_selfeng)
+
     mf = scf.RHF(mol)     
     mf.kernel()          
     F_ao = mf.get_fock()    
     C   = mf.mo_coeff        
     F_mo = C.T @ F_ao @ C   
-    Fock_occ = F_mo[:nocc,:nocc]
-    Fock_vir = F_mo[nocc:,nocc:]
-    print(vir_selfeng)
+    Fock_occ = F_mo[:int(n_occ/2),:int(n_occ/2)]
+    print(Fock_occ.shape)
+    Fock_vir = F_mo[int(n_occ/2):,int(n_occ/2):]
+    print(Fock_vir.shape)
+
+    spat_occ = int(n_occ/2)
+    spat_vir = int(n_vir/2)
+    
+    Fock_occ_spin = np.zeros((n_occ,n_occ))
+    Fock_vir_spin = np.zeros((n_vir,n_vir))
+
+    Fock_occ_spin[:spat_occ,:spat_occ] = Fock_occ
+    Fock_occ_spin[spat_occ:,spat_occ:] = Fock_occ
+
+    Fock_vir_spin[:spat_vir,:spat_vir] = Fock_vir
+    Fock_vir_spin[spat_vir:,spat_vir:] = Fock_vir
+
+    print(occ_selfeng + Fock_occ_spin)
+    print(vir_selfeng + Fock_vir_spin)
 
 
