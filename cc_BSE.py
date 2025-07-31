@@ -3,7 +3,6 @@ from pyscf import gto, scf, cc
 from scipy.linalg import block_diag
 from BSE_Helper import spinor_one_and_two_e_int
 
-
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
 
@@ -15,10 +14,25 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
 
     print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
     print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
-    # print(mycc.t2.shape)
 
+    t2 = mycc.t2
 
-    return mo, mycc.t2
+    # Get number of spatial orbitals
+    n_occ = t2.shape[0]
+    n_vir = t2.shape[2]
+
+    t_ijab = t2
+    t_ijba = -np.einsum("ijab->ijba", t2,optimize='optimal')
+
+    t2_spin = np.zeros((n_occ*2,n_occ*2,n_vir*2,n_vir*2))
+    t2_spin[:n_occ,:n_occ,:n_vir,:n_vir] = t_ijab-t_ijba
+    t2_spin[n_occ:,n_occ:,n_vir:,n_vir:] = t_ijab-t_ijba
+    t2_spin[:n_occ,n_occ:,:n_vir,n_vir:] = t_ijab
+    t2_spin[n_occ:,:n_occ,n_vir:,:n_vir] = t_ijab
+    t2_spin[n_occ:,:n_occ,:n_vir,n_vir:] = - t_ijba
+    t2_spin[:n_occ,n_occ:,n_vir:,:n_vir] = - t_ijba
+
+    return mo, t2_spin
     
 def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
 
@@ -69,11 +83,8 @@ if __name__ == "__main__":
     
     # get molecular orbitals and t2 amplitudes
     mo,t2 = bccd_t2_amps(mol)
-    t2_spin = np.block([[t2,t2],
-                        [t2,t2]])
-    print(t2_spin.shape)
     core_spinorbs, vir_spinorbs = get_spinorbs(mo)
-
+    print(t2.shape)
     # Build electron repulsion integrals
     _, eri_ao = spinor_one_and_two_e_int(mol)                       # Find eri in spinor form
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
@@ -87,6 +98,5 @@ if __name__ == "__main__":
     ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
 
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
-    print(occ_selfeng)
 
 
