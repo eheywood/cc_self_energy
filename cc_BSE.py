@@ -38,10 +38,24 @@ def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
     return core_spinorbs, vir_spinorbs
 
 def get_self_energy(t2:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
+    """_summary_
+
+    Parameters
+    ----------
+    t2 : np.ndarray
+        t2 amplitudes
+    oovv : np.ndarray
+        anti symmetrised integral
+
+    Returns
+    -------
+    tuple[np.ndarray,np.ndarray]
+        occupied self energy, virtual self energy 
+    """
     occ_selfeng = np.einsum("ikab,jkab -> ij", oovv,t2,optimize="optimal")
     vir_selfeng = np.einsum("ijbc,ijac -> ab", oovv,t2,optimize="optimal")
 
-    return occ_selfeng,vir_selfeng
+    return occ_selfeng, vir_selfeng
 
 
 if __name__ == "__main__":
