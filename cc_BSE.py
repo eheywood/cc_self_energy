@@ -29,9 +29,10 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     t2_spin[n_occ:,n_occ:,n_vir:,n_vir:] = t_ijab-t_ijba
     t2_spin[:n_occ,n_occ:,:n_vir,n_vir:] = t_ijab
     t2_spin[n_occ:,:n_occ,n_vir:,:n_vir] = t_ijab
-    t2_spin[n_occ:,:n_occ,:n_vir,n_vir:] = - t_ijba
-    t2_spin[:n_occ,n_occ:,n_vir:,:n_vir] = - t_ijba
+    t2_spin[n_occ:,:n_occ,:n_vir,n_vir:] = t_ijba
+    t2_spin[:n_occ,n_occ:,n_vir:,:n_vir] = t_ijba
 
+    print(t2_spin)
     return mo, t2_spin
     
 def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
@@ -66,8 +67,8 @@ def get_self_energy(t2:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarr
     tuple[np.ndarray,np.ndarray]
         occupied self energy, virtual self energy 
     """
-    occ_selfeng = np.einsum("ikab,jkab -> ij", oovv,t2,optimize="optimal")
-    vir_selfeng = np.einsum("ijbc,ijac -> ab", oovv,t2,optimize="optimal")
+    occ_selfeng = 0.5 * np.einsum("ikab,jkab -> ij", oovv,t2,optimize="optimal")
+    vir_selfeng = -0.5 * np.einsum("ijbc,ijac -> ab", oovv,t2,optimize="optimal")
 
     return occ_selfeng, vir_selfeng
 
@@ -98,5 +99,6 @@ if __name__ == "__main__":
     ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
 
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
-
+    print(occ_selfeng)
+    print(vir_selfeng)
 
