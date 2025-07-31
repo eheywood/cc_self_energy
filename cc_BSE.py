@@ -17,7 +17,6 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
     # print(mycc.t2.shape)
 
-
     return mo, mycc.t2
     
 def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
@@ -74,5 +73,14 @@ if __name__ == "__main__":
 
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
     print(occ_selfeng)
+
+    mf = scf.RHF(mol)     
+    mf.kernel()          
+    F_ao = mf.get_fock()    
+    C   = mf.mo_coeff        
+    F_mo = C.T @ F_ao @ C   
+    Fock_occ = F_mo[:nocc,:nocc]
+    Fock_vir = F_mo[nocc:,nocc:]
+        
 
 
