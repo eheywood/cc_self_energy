@@ -100,5 +100,13 @@ if __name__ == "__main__":
 
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
     print(occ_selfeng)
+    mf = scf.RHF(mol)     
+    mf.kernel()          
+    F_ao = mf.get_fock()    
+    C   = mf.mo_coeff        
+    F_mo = C.T @ F_ao @ C   
+    Fock_occ = F_mo[:nocc,:nocc]
+    Fock_vir = F_mo[nocc:,nocc:]
     print(vir_selfeng)
+
 
