@@ -184,3 +184,50 @@ def build_double_ints(core_spinorbs:np.ndarray,
     ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
 
     return oovv,ooov,vovv,ovvo,ovov
+
+def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+    """ Calculates the bccd amplitudes as well as returing the molecular orbitals and orbital energies.
+
+    Parameters
+    ----------
+    mol : gto.Mole
+        The molecule to calculate this for.s
+
+    Returns
+    -------
+    tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]
+        molecular orbitals, t2 amplitudes, core orbital energies, virtual orbital energies.
+    """
+    myhf = mol.HF.run() 
+    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
+
+    print(mycc.e_tot)
+    mo = mycc.mo_coeff
+
+    print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
+    print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
+
+    t2 = mycc.t2
+
+    # Get number of spatial orbitals
+    n_occ = t2.shape[0]
+    n_vir = t2.shape[2]
+
+    t_ijab = t2
+    print(t2.reshape(-1))
+    t_ijba = -np.einsum("ijab->ijba", t2,optimize='optimal')
+
+    t2_spin = np.zeros((n_occ*2,n_occ*2,n_vir*2,n_vir*2))
+    t2_spin[:n_occ,:n_occ,:n_vir,:n_vir] = t_ijab-t_ijba
+    t2_spin[n_occ:,n_occ:,n_vir:,n_vir:] = t_ijab-t_ijba
+    t2_spin[:n_occ,n_occ:,:n_vir,n_vir:] = t_ijab
+    t2_spin[n_occ:,:n_occ,n_vir:,:n_vir] = t_ijab
+    t2_spin[n_occ:,:n_occ,:n_vir,n_vir:] = t_ijba
+    t2_spin[:n_occ,n_occ:,n_vir:,:n_vir] = t_ijba
+
+    # Orbital energies
+    core_e = np.array(list(myhf.mo_energy[:1]) + list(myhf.mo_energy[:1]))
+    vir_e = np.array(list(myhf.mo_energy[1:]) + list(myhf.mo_energy[1:]))
+
+    # print(t2_spin)
+    return mo, t2_spin, core_e, vir_e
