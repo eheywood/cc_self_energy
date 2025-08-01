@@ -4,7 +4,7 @@ import BSE_Helper as bse
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
-    
+
 if __name__ == "__main__":
 
     # Define Molecule to calculate amplitudes and mo for
@@ -34,16 +34,14 @@ if __name__ == "__main__":
     # n_occ x n_occ, n_vir x n_vir
     fock_occ, fock_vir = bse.build_fock_matrices(mol,n_occ,n_vir)
 
-    F_ij = occ_selfeng + fock_occ
-    F_ab = vir_selfeng + fock_vir    
+    # n_occ x n_occ, n_vir x n_vir
+    gfock_occ, gfock_vir = build_gfock(t2, oovv, fock_occ, fock_vir)
 
-    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
-    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
+    # (n_occ,n_vir,n_occ,n_vir,nspincase)
+    hbse = build_bse(occ_selfeng, vir_selfeng, gfock_occ, gfock_vir, n_occ, n_vir)
     
-    H_bse = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal') + np.einsum("ikbc,jkca -> iajb", oovv,t2,optimize="optimal")
-
-    H_bse = H_bse.reshape((n_occ*n_vir,n_occ*n_vir))
-    e, v = np.linalg.eig(H_bse)
+    #H_bse = H_bse.reshape((n_occ*n_vir,n_occ*n_vir))
+    #e, v = np.linalg.eig(hbse)
 
     np.savetxt("eigenvals.csv", np.sort(np.real(e)), delimiter=',')
 
