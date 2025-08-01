@@ -83,9 +83,7 @@ def build_fock_matrices(mol)-> tuple[np.ndarray,np.ndarray]:
     C   = mf.mo_coeff        
     F_mo = C.T @ F_ao @ C   
     fock_occ = F_mo[:int(n_occ/2),:int(n_occ/2)]
-    print(fock_occ.shape)
     fock_vir = F_mo[int(n_occ/2):,int(n_occ/2):]
-    print(fock_vir.shape)
 
     #TODO: COME BACK AND GENERALISE TO LARGER SYSTEMS
     spat_occ = int(n_occ/2)
@@ -139,4 +137,10 @@ if __name__ == "__main__":
     F_ij = occ_selfeng + fock_occ
     F_ab = vir_selfeng + fock_vir    
 
+    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
+    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
+    
+    H_bse = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal') + np.einsum("ikbc,jkca -> iajb", oovv,t2,optimize="optimal")
+
+    print(H_bse)
 
