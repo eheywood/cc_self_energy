@@ -75,6 +75,32 @@ def get_self_energy(t2:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarr
 
     return occ_selfeng, vir_selfeng
 
+def build_fock_matrices(mol)-> tuple[np.ndarray,np.ndarray]:
+
+    mf = scf.HF(mol)     
+    mf.kernel()          
+    F_ao = mf.get_fock()    
+    C   = mf.mo_coeff        
+    F_mo = C.T @ F_ao @ C   
+    fock_occ = F_mo[:int(n_occ/2),:int(n_occ/2)]
+    print(fock_occ.shape)
+    fock_vir = F_mo[int(n_occ/2):,int(n_occ/2):]
+    print(fock_vir.shape)
+
+    #TODO: COME BACK AND GENERALISE TO LARGER SYSTEMS
+    spat_occ = int(n_occ/2)
+    spat_vir = int(n_vir/2)
+    
+    fock_occ_spin = np.zeros((n_occ,n_occ))
+    fock_vir_spin = np.zeros((n_vir,n_vir))
+
+    fock_occ_spin[:spat_occ,:spat_occ] = fock_occ
+    fock_occ_spin[spat_occ:,spat_occ:] = fock_occ
+
+    fock_vir_spin[:spat_vir,:spat_vir] = fock_vir
+    fock_vir_spin[spat_vir:,spat_vir:] = fock_vir
+
+    return fock_occ_spin, fock_vir_spin
 
 if __name__ == "__main__":
 
@@ -104,31 +130,13 @@ if __name__ == "__main__":
     ovvo = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spinorbs, vir_spinorbs, anti_eri_ao, vir_spinorbs, core_spinorbs,optimize="optimal") 
     ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
 
+    # n_occ x n_occ, n_vir x n_vir
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
 
-    mf = scf.RHF(mol)     
-    mf.kernel()          
-    F_ao = mf.get_fock()    
-    C   = mf.mo_coeff        
-    F_mo = C.T @ F_ao @ C   
-    Fock_occ = F_mo[:int(n_occ/2),:int(n_occ/2)]
-    print(Fock_occ.shape)
-    Fock_vir = F_mo[int(n_occ/2):,int(n_occ/2):]
-    print(Fock_vir.shape)
+    # n_occ x n_occ, n_vir x n_vir
+    fock_occ, fock_vir = build_fock_matrices(mol)
 
-    spat_occ = int(n_occ/2)
-    spat_vir = int(n_vir/2)
-    
-    Fock_occ_spin = np.zeros((n_occ,n_occ))
-    Fock_vir_spin = np.zeros((n_vir,n_vir))
-
-    Fock_occ_spin[:spat_occ,:spat_occ] = Fock_occ
-    Fock_occ_spin[spat_occ:,spat_occ:] = Fock_occ
-
-    Fock_vir_spin[:spat_vir,:spat_vir] = Fock_vir
-    Fock_vir_spin[spat_vir:,spat_vir:] = Fock_vir
-
-    print(occ_selfeng + Fock_occ_spin)
-    print(vir_selfeng + Fock_vir_spin)
+    F_ij = occ_selfeng + fock_occ
+    F_ab = vir_selfeng + fock_vir    
 
 
