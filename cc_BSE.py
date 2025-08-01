@@ -1,7 +1,6 @@
 import numpy as np
 from pyscf import gto, scf, cc
-from scipy.linalg import block_diag
-from BSE_Helper import spinor_one_and_two_e_int
+import BSE_Helper as bse
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
@@ -38,68 +37,6 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     # print(t2_spin)
     return mo, t2_spin
     
-def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
-
-    # Core and Virtual Orbitals (spatial orbital basis)
-    core_spatialorbs = mo[:, 0].reshape(-1,1)
-    vir_spatialorbs = mo[:, 1:]
-
-    # Convert core and virtual orbitals into spin-orbital form. The first half of the columns will be alpha spin orbs, the
-    # next half of the columns will be beta spin orbs
-    core_spinorbs = block_diag(core_spatialorbs, core_spatialorbs)
-    vir_spinorbs = block_diag(vir_spatialorbs, vir_spatialorbs)
-
-    n_occ = core_spinorbs.shape[1]
-    n_vir = vir_spinorbs.shape[1]
-    print(f"n_occ = {n_occ}, n_vir = {n_vir}")
-
-    return core_spinorbs, vir_spinorbs
-
-def get_self_energy(t2:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
-    """_summary_
-
-    Parameters
-    ----------
-    t2 : np.ndarray
-        t2 amplitudes
-    oovv : np.ndarray
-        anti symmetrised integral
-
-    Returns
-    -------
-    tuple[np.ndarray,np.ndarray]
-        occupied self energy, virtual self energy 
-    """
-    occ_selfeng = 0.5 * np.einsum("ikab,jkab -> ij", oovv,t2,optimize="optimal")
-    vir_selfeng = -0.5 * np.einsum("ijbc,ijac -> ab", oovv,t2,optimize="optimal")
-
-    return occ_selfeng, vir_selfeng
-
-def build_fock_matrices(mol)-> tuple[np.ndarray,np.ndarray]:
-
-    mf = scf.HF(mol)     
-    mf.kernel()          
-    F_ao = mf.get_fock()    
-    C   = mf.mo_coeff        
-    F_mo = C.T @ F_ao @ C   
-    fock_occ = F_mo[:int(n_occ/2),:int(n_occ/2)]
-    fock_vir = F_mo[int(n_occ/2):,int(n_occ/2):]
-
-    #TODO: COME BACK AND GENERALISE TO LARGER SYSTEMS
-    spat_occ = int(n_occ/2)
-    spat_vir = int(n_vir/2)
-    
-    fock_occ_spin = np.zeros((n_occ,n_occ))
-    fock_vir_spin = np.zeros((n_vir,n_vir))
-
-    fock_occ_spin[:spat_occ,:spat_occ] = fock_occ
-    fock_occ_spin[spat_occ:,spat_occ:] = fock_occ
-
-    fock_vir_spin[:spat_vir,:spat_vir] = fock_vir
-    fock_vir_spin[spat_vir:,spat_vir:] = fock_vir
-
-    return fock_occ_spin, fock_vir_spin
-
 if __name__ == "__main__":
 
     # Define Molecule to calculate amplitudes and mo for
@@ -111,28 +48,25 @@ if __name__ == "__main__":
     
     # get molecular orbitals and t2 amplitudes
     mo,t2 = bccd_t2_amps(mol)   
-    core_spinorbs, vir_spinorbs = get_spinorbs(mo)
+    core_spinorbs, vir_spinorbs = bse.get_spinorbs(mo)
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
 
     print(t2.shape)
+
     # Build electron repulsion integrals
-    _, eri_ao = spinor_one_and_two_e_int(mol)                       # Find eri in spinor form
+    _, eri_ao = bse.spinor_one_and_two_e_int(mol)                       # Find eri in spinor form
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
     anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
-    # Build the required anti-symmetrised orbitals
-    oovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spinorbs, core_spinorbs, anti_eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
-    ooov =  np.einsum("pi,qk,pqrs,rj,sc->ikjc",core_spinorbs,core_spinorbs,anti_eri_ao,core_spinorbs,vir_spinorbs,optimize="optimal") 
-    vovv =  np.einsum("pa,qk,pqrs,rb,sc->akbc",vir_spinorbs,core_spinorbs,anti_eri_ao,vir_spinorbs,vir_spinorbs,optimize="optimal") 
-    ovvo = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spinorbs, vir_spinorbs, anti_eri_ao, vir_spinorbs, core_spinorbs,optimize="optimal") 
-    ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
+    # antisymmetrised:
+    oovv,ooov,vovv,ovvo,ovov = bse.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
 
     # n_occ x n_occ, n_vir x n_vir
-    occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
+    occ_selfeng, vir_selfeng = bse.get_self_energy(t2,oovv)
 
     # n_occ x n_occ, n_vir x n_vir
-    fock_occ, fock_vir = build_fock_matrices(mol)
+    fock_occ, fock_vir = bse.build_fock_matrices(mol)
 
     F_ij = occ_selfeng + fock_occ
     F_ab = vir_selfeng + fock_vir    

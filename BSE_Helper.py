@@ -62,3 +62,75 @@ def super_matrix_solver(A, B):
     Y = pos_v[nA:, :]
     return pos_e, X, Y
 
+def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
+
+    # Core and Virtual Orbitals (spatial orbital basis)
+    core_spatialorbs = mo[:, 0].reshape(-1,1)
+    vir_spatialorbs = mo[:, 1:]
+
+    # Convert core and virtual orbitals into spin-orbital form. The first half of the columns will be alpha spin orbs, the
+    # next half of the columns will be beta spin orbs
+    core_spinorbs = block_diag(core_spatialorbs, core_spatialorbs)
+    vir_spinorbs = block_diag(vir_spatialorbs, vir_spatialorbs)
+
+    n_occ = core_spinorbs.shape[1]
+    n_vir = vir_spinorbs.shape[1]
+    print(f"n_occ = {n_occ}, n_vir = {n_vir}")
+
+    return core_spinorbs, vir_spinorbs
+
+def get_self_energy(t2:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
+    """_summary_
+
+    Parameters
+    ----------
+    t2 : np.ndarray
+        t2 amplitudes
+    oovv : np.ndarray
+        anti symmetrised integral
+
+    Returns
+    -------
+    tuple[np.ndarray,np.ndarray]
+        occupied self energy, virtual self energy 
+    """
+    occ_selfeng = 0.5 * np.einsum("ikab,jkab -> ij", oovv,t2,optimize="optimal")
+    vir_selfeng = -0.5 * np.einsum("ijbc,ijac -> ab", oovv,t2,optimize="optimal")
+
+    return occ_selfeng, vir_selfeng
+
+def build_fock_matrices(mol)-> tuple[np.ndarray,np.ndarray]:
+
+    mf = scf.HF(mol)     
+    mf.kernel()          
+    F_ao = mf.get_fock()    
+    C   = mf.mo_coeff        
+    F_mo = C.T @ F_ao @ C   
+    fock_occ = F_mo[:int(n_occ/2),:int(n_occ/2)]
+    fock_vir = F_mo[int(n_occ/2):,int(n_occ/2):]
+
+    #TODO: COME BACK AND GENERALISE TO LARGER SYSTEMS
+    spat_occ = int(n_occ/2)
+    spat_vir = int(n_vir/2)
+    
+    fock_occ_spin = np.zeros((n_occ,n_occ))
+    fock_vir_spin = np.zeros((n_vir,n_vir))
+
+    fock_occ_spin[:spat_occ,:spat_occ] = fock_occ
+    fock_occ_spin[spat_occ:,spat_occ:] = fock_occ
+
+    fock_vir_spin[:spat_vir,:spat_vir] = fock_vir
+    fock_vir_spin[spat_vir:,spat_vir:] = fock_vir
+
+    return fock_occ_spin, fock_vir_spin
+
+def build_double_ints(core_spinorbs,vir_spinorbs,ant_eri_ao)-> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+
+    # Build the required anti-symmetrised orbitals
+    oovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spinorbs, core_spinorbs, anti_eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
+    ooov =  np.einsum("pi,qk,pqrs,rj,sc->ikjc",core_spinorbs,core_spinorbs,anti_eri_ao,core_spinorbs,vir_spinorbs,optimize="optimal") 
+    vovv =  np.einsum("pa,qk,pqrs,rb,sc->akbc",vir_spinorbs,core_spinorbs,anti_eri_ao,vir_spinorbs,vir_spinorbs,optimize="optimal") 
+    ovvo = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spinorbs, vir_spinorbs, anti_eri_ao, vir_spinorbs, core_spinorbs,optimize="optimal") 
+    ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
+
+    return oovv,ooov,vovv,ovvo,ovov
