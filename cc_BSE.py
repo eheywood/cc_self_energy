@@ -11,11 +11,11 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     myhf = mol.HF.run() 
     mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
 
-    print(mycc.e_tot)
+    #print(mycc.e_tot)
     mo = mycc.mo_coeff
 
-    print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
-    print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
+    #print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
+    #print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
 
     t2 = mycc.t2
 
@@ -24,7 +24,7 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray]:
     n_vir = t2.shape[2]
 
     t_ijab = t2
-    print(t2.reshape(-1))
+    #print(t2.reshape(-1))
     t_ijba = -np.einsum("ijab->ijba", t2,optimize='optimal')
 
     t2_spin = np.zeros((n_occ*2,n_occ*2,n_vir*2,n_vir*2))
@@ -51,7 +51,7 @@ def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
 
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
-    print(f"n_occ = {n_occ}, n_vir = {n_vir}")
+    #print(f"n_occ = {n_occ}, n_vir = {n_vir}")
 
     return core_spinorbs, vir_spinorbs
 
@@ -100,6 +100,40 @@ def build_fock_matrices(mol)-> tuple[np.ndarray,np.ndarray]:
 
     return fock_occ_spin, fock_vir_spin
 
+def build_gfock(t2, oovv, fock_occ, fock_vir) -> tuple[np.ndarray,np.ndarray]:
+    # n_occ x n_occ, n_vir x n_vir
+    occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
+
+    # n_occ x n_occ, n_vir x n_vir
+    fock_occ, fock_vir = build_fock_matrices(mol) 
+
+    return fock_occ, fock_vir
+
+def build_bse(occ_selfeng, vir_selfeng, fock_occ, fock_vir, n_occ, n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+    
+    F_ij = occ_selfeng + fock_occ
+    F_ab = vir_selfeng + fock_vir   
+    
+    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
+    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
+
+    nspincase = 4
+    H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
+    
+    for i in range(4):
+        H_bse[:,:,:,:,i] = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal')
+
+        for ispina in range(2):
+            for ispinb in range (2):
+                if ispina == ispinb:
+                    # ispincase = 1  or 2
+                    H_bse[:,:,:,:,i] += - np.einsum("ikcb, jkca -> iajb", goovv,t2,optimize="optimal")
+    
+                else:
+                    # ispincase = 3 or 4
+                    H_bse[:,:,:,:,i] += - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal") + np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
+    return H_bse
+
 if __name__ == "__main__":
 
     # Define Molecule to calculate amplitudes and mo for
@@ -115,7 +149,7 @@ if __name__ == "__main__":
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
 
-    print(t2.shape)
+    #print(t2.shape)
     # Build electron repulsion integrals
     _, eri_ao = spinor_one_and_two_e_int(mol)                       # Find eri in spinor form
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
@@ -127,23 +161,24 @@ if __name__ == "__main__":
     vovv =  np.einsum("pa,qk,pqrs,rb,sc->akbc",vir_spinorbs,core_spinorbs,anti_eri_ao,vir_spinorbs,vir_spinorbs,optimize="optimal") 
     ovvo = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spinorbs, vir_spinorbs, anti_eri_ao, vir_spinorbs, core_spinorbs,optimize="optimal") 
     ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, anti_eri_ao, core_spinorbs, vir_spinorbs, optimize="optimal")
-
+    goovv = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, core_spinorbs, eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
+    
     # n_occ x n_occ, n_vir x n_vir
     occ_selfeng, vir_selfeng = get_self_energy(t2,oovv)
 
     # n_occ x n_occ, n_vir x n_vir
     fock_occ, fock_vir = build_fock_matrices(mol)
 
-    F_ij = occ_selfeng + fock_occ
-    F_ab = vir_selfeng + fock_vir    
+    # n_occ x n_occ, n_vir x n_vir
+    gfock_occ, gfock_vir = build_gfock(t2, oovv, fock_occ, fock_vir)
 
-    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
-    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
+    # (n_occ,n_vir,n_occ,n_vir,nspincase)
+    hbse = build_bse(occ_selfeng, vir_selfeng, gfock_occ, gfock_vir, n_occ, n_vir)
     
-    H_bse = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal') + np.einsum("ikbc,jkca -> iajb", oovv,t2,optimize="optimal")
+    #H_bse = H_bse.reshape((n_occ*n_vir,n_occ*n_vir))
+    #e, v = np.linalg.eig(hbse)
 
-    H_bse = H_bse.reshape((n_occ*n_vir,n_occ*n_vir))
-    e, v = np.linalg.eig(H_bse)
 
-    np.savetxt("eigenvals.csv", e, delimiter=',')
+    
+
 
