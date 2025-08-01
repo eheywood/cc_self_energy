@@ -45,5 +45,5 @@ if __name__ == "__main__":
     H_bse = H_bse.reshape((n_occ*n_vir,n_occ*n_vir))
     e, v = np.linalg.eig(H_bse)
 
-    np.savetxt("eigenvals.csv", e, delimiter=',')
+    np.savetxt("eigenvals.csv", np.sort(np.real(e)), delimiter=',')
 

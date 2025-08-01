@@ -18,8 +18,8 @@ if __name__ == "__main__":
 
     core_spinorbs, vir_spinorbs =  bse.get_spinorbs(mo)
 
-    n_occ = core_spinorbs[1]
-    n_vir = vir_spinorbs[1]
+    n_occ = core_spinorbs.shape[1]
+    n_vir = vir_spinorbs.shape[1]
 
     # Constructing <ij|ab> and <ia|bj>
     _, eri_ao = bse.spinor_one_and_two_e_int(mol)                   # Find eri in spinor form
@@ -38,6 +38,10 @@ if __name__ == "__main__":
 
     # Self energies (in eV)
     core_gwe, vir_gwe = bse.get_self_energy(t2,oovv_anti)
+    core_gwe = np.diag(core_gwe)
+    vir_gwe = np.diag(vir_gwe)
+    print(core_gwe)
+    print(vir_gwe)
 
     # Solve RPA equation to get W
     # construct A and B and use supermatrix solver to get eigenvectors and values
@@ -76,7 +80,12 @@ if __name__ == "__main__":
     print("GWE-BSE Complete")
 
     t_coeffic = YW@np.linalg.inv(XW)
+    t2_reshaped = t2.reshape((n_occ*n_vir,n_occ*n_vir))
 
     np.savetxt("rpa_coeffic.csv",t_coeffic,delimiter=",")
-    # print(max(np.abs(t_coeffic.reshape(-1))))
+    np.savetxt("bccd_coeffic.csv",t2_reshaped,delimiter=",")
+
+    print("RPA eigenvals: ", np.sort(eig))
+    print("GW-BSE eigenvals: ", np.sort(eigW))
+    
 
