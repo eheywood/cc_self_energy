@@ -5,7 +5,7 @@ import BSE_Helper as bse
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
 
-def build_gfock(t2, oovv, fock_occ, fock_vir,n_occ,n_vir) -> tuple[np.ndarray,np.ndarray]:
+def build_gfock(t2, oovv, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray]:
     # n_occ x n_occ, n_vir x n_vir
     occ_selfeng, vir_selfeng = bse.get_self_energy(t2,oovv)
 
@@ -17,26 +17,15 @@ def build_gfock(t2, oovv, fock_occ, fock_vir,n_occ,n_vir) -> tuple[np.ndarray,np
 
     return F_ij,F_ab
 
-def build_bse(F_ij:np.ndarray,F_ab,ovvo,goovv,t2, n_occ, n_vir) -> np.ndarray:
+def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
     
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
-    nspincase = 4
-    H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
+    H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir))
     
-    for i in range(4):
-        H_bse[:,:,:,:,i] = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal')
-
-        for ispina in range(2):
-            for ispinb in range (2):
-                if ispina == ispinb:
-                    # ispincase = 1  or 2
-                    H_bse[:,:,:,:,i] += - np.einsum("ikcb, jkca -> iajb", goovv,t2,optimize="optimal")
+    H_bse = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal') + np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
     
-                else:
-                    # ispincase = 3 or 4
-                    H_bse[:,:,:,:,i] += - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal") + np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
     return H_bse
 
 if __name__ == "__main__":
@@ -61,26 +50,23 @@ if __name__ == "__main__":
 
     # antisymmetrised:
     oovv,ooov,vovv,ovvo,ovov = bse.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
-    goovv = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, core_spinorbs, eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
+    # goovv = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, core_spinorbs, eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
 
     # n_occ x n_occ, n_vir x n_vir
-    occ_selfeng, vir_selfeng = bse.get_self_energy(t2,oovv)
+    # occ_selfeng, vir_selfeng = bse.get_self_energy(t2,oovv)
 
     # n_occ x n_occ, n_vir x n_vir
-    fock_occ, fock_vir = bse.build_fock_matrices(mol,n_occ,n_vir)
+    # fock_occ, fock_vir = bse.build_fock_matrices(mol,n_occ,n_vir)
 
     # n_occ x n_occ, n_vir x n_vir
-    gfock_occ, gfock_vir = build_gfock(t2, oovv, fock_occ, fock_vir,n_occ,n_vir)
+    gfock_occ, gfock_vir = build_gfock(t2, oovv, n_occ,n_vir)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse = build_bse(gfock_occ,gfock_vir,ovvo,goovv,t2, n_occ, n_vir)
+    hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2, n_occ, n_vir)
+    hbse = hbse.reshape((n_occ*n_vir,n_occ*n_vir))
     
-    H_bse_aaaa = hbse[:,:,:,:,0].reshape((n_occ*n_vir,n_occ*n_vir))
-    H_bse_bbbb = hbse[:,:,:,:,1].reshape((n_occ*n_vir,n_occ*n_vir))
-    H_bse_abab = hbse[:,:,:,:,2].reshape((n_occ*n_vir,n_occ*n_vir))
-    H_bse_baba = hbse[:,:,:,:,3].reshape((n_occ*n_vir,n_occ*n_vir))
+    e, v = np.linalg.eig(hbse)
+    print(e)
 
-    e, v = np.linalg.eig(H_bse_abab)
-
-    np.savetxt("eigenvals.csv", np.sort(np.real(e)), delimiter=',')
+    np.savetxt("eigenvals_spin.csv", np.sort(np.real(e)), delimiter=',')
 
