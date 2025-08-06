@@ -33,7 +33,7 @@ def build_fock_matrices_spatial(mol)-> tuple[np.ndarray,np.ndarray]:
 
     return fock_occ, fock_vir
 
-def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, t2) -> np.ndarray:
+def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2) -> np.ndarray:
 
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
@@ -42,21 +42,30 @@ def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, t2) -> np.ndarray:
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
     
     for i in range(2):
-        H_bse[:,:,:,:,i] = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal')
+        H_bse[:,:,:,:,i] = F_abij - F_ijab
 
-        for ispina in range(2):
-            for ispini in range (2):
-                if ispina == ispini:
-                    # ispincase = 1  or 2
-                    term1 = np.einsum("ikbc, ijab -> iajb", oovv,t2,optimize="optimal")
-                    term2 = np.einsum("ikbc, ijba -> iajb", oovv,t2,optimize="optimal")
-                    term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
-                    
-                    H_bse[:,:,:,:,i] += term1 + term2 + term3
-    
-                else:
-                    # ispincase = 3 or 4
-                    H_bse[:,:,:,:,i] += - np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal") 
+        if i == 0:
+            # ispincase = 1  or 2
+
+            # ovvo term
+            H_bse[:,:,:,:,i] += np.einsum("iabj->iajb", ovvo, optimize="optimal")
+
+            # contraction term
+            term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
+            term2 = -np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
+            term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
+            
+            H_bse[:,:,:,:,i] += term1 + term2 + term3
+
+        else:
+            # ispincase = 3 or 4
+
+            # govov term
+            H_bse[:,:,:,:,i] += -govov
+
+            # contraction term
+            H_bse[:,:,:,:,i] += - np.einsum("ikcb, jkca -> iajb", goovv, t2,optimize="optimal") 
+
     return H_bse
 
 if __name__ == "__main__":
@@ -89,7 +98,9 @@ if __name__ == "__main__":
     # Build the required anti-symmetrised orbitals
     oovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spatialorbs, core_spatialorbs, anti_eri_ao, vir_spatialorbs, vir_spatialorbs, optimize="optimal")
     ovvo = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spatialorbs, vir_spatialorbs, anti_eri_ao, vir_spatialorbs, core_spatialorbs,optimize="optimal") 
+
     goovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spatialorbs, core_spatialorbs, eri_ao, vir_spatialorbs, vir_spatialorbs, optimize="optimal")
+    govov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spatialorbs, vir_spatialorbs, eri_ao, core_spatialorbs,vir_spatialorbs, optimize="optimal")
 
     # build self energy
     selfener_occ, selfener_vir = get_selfenergy_spatial(t2,oovv,goovv) # n_occ x n_occ, n_vir x n_vir
@@ -102,11 +113,12 @@ if __name__ == "__main__":
     F_ab = selfener_vir + fock_vir 
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse = build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, t2)
+    hbse = build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2)
     
-    H_bse = hbse[:,:,:,:,1].reshape((n_occ*n_vir,n_occ*n_vir))
+    H_bse = hbse[:,:,:,:,0].reshape((n_occ*n_vir,n_occ*n_vir))
     e, v = np.linalg.eig(H_bse)
-    print(e)
+    print(e.shape)
+    print(np.real(e))
 
 
     
