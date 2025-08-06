@@ -1,7 +1,5 @@
 import numpy as np
 from pyscf import gto, scf, cc
-from scipy.linalg import block_diag
-from BSE_Helper import spinor_one_and_two_e_int
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
@@ -10,14 +8,14 @@ def get_selfenergy_spatial(t2,oovv, goovv):
     selfener_occ_1 = np.einsum('ikab, jkab -> ij', oovv, t2, optimize="optimal")
     selfener_occ_2 = -np.einsum('ikab, jkba -> ij', oovv, t2, optimize="optimal")
     selfener_occ_3 = np.einsum('ikab, jkab -> ij', goovv, t2, optimize="optimal")
-    selfener_occ_4 = np.einsum('ikba, jkba -> ij', goovv, t2, optimize="optimal")
+    selfener_occ_4 = np.einsum('ikba, jkab -> ij', goovv, t2, optimize="optimal")
 
     selfener_occ = 0.5*(selfener_occ_1 + selfener_occ_2 + selfener_occ_3 + selfener_occ_4)
     
     selfener_vir_1 = np.einsum('ijbc, ijac -> ab', oovv, t2, optimize="optimal")
     selfener_vir_2 = - np.einsum('ijbc, ijca -> ab', oovv, t2, optimize="optimal")
     selfener_vir_3 = np.einsum('ijbc, ijac -> ab', goovv, t2, optimize="optimal")
-    selfener_vir_4 = np.einsum('ijcb, ijca -> ab', goovv, t2, optimize="optimal")
+    selfener_vir_4 = np.einsum('ijcb, ijac -> ab', goovv, t2, optimize="optimal")
 
     selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
     return selfener_occ, selfener_vir
@@ -35,16 +33,7 @@ def build_fock_matrices_spatial(mol)-> tuple[np.ndarray,np.ndarray]:
 
     return fock_occ, fock_vir
 
-def build_gfock_spatial(t2, oovv, goovv, selfener_occ, selfener_vir, fock_occ, fock_vir) -> tuple[np.ndarray,np.ndarray]:
-    occ_selfeng, vir_selfeng = get_selfenergy_spatial(t2,oovv, goovv)
-    fock_occ, fock_vir = build_fock_matrices_spatial(mol) 
-    
-    F_ij = occ_selfeng + fock_occ
-    F_ab = vir_selfeng + fock_vir 
-
-    return F_ij, F_ab
-
-def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, t2) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, t2) -> np.ndarray:
 
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
@@ -86,7 +75,7 @@ if __name__ == "__main__":
     mo = mycc.mo_coeff
     t2 = mycc.t2
 
-    # spatial orbital numbers
+    # SPATIAL orbital numbers
     n_occ = t2.shape[0]
     n_vir = t2.shape[2]
 
@@ -103,7 +92,7 @@ if __name__ == "__main__":
     goovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spatialorbs, core_spatialorbs, eri_ao, vir_spatialorbs, vir_spatialorbs, optimize="optimal")
 
     # build self energy
-    selfener_occ, selfener_vir = get_selfenergy_spatial(t2,oovv, goovv) # n_occ x n_occ, n_vir x n_vir
+    selfener_occ, selfener_vir = get_selfenergy_spatial(t2,oovv,goovv) # n_occ x n_occ, n_vir x n_vir
 
     # build fock matrix
     fock_occ, fock_vir = build_fock_matrices_spatial(mol) # n_occ x n_occ, n_vir x n_vir
@@ -115,8 +104,9 @@ if __name__ == "__main__":
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, t2)
     
-    #H_bse = H_bse.reshape((n_occ*n_vir,n_occ*n_vir))
-    #e, v = np.linalg.eig(hbse)
+    H_bse = hbse[:,:,:,:,1].reshape((n_occ*n_vir,n_occ*n_vir))
+    e, v = np.linalg.eig(H_bse)
+    print(e)
 
 
     
