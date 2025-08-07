@@ -231,3 +231,45 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndar
 
     # print(t2_spin)
     return mo, t2_spin, core_e, vir_e
+
+def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
+    # SPATIAL OCCUPIED AND SPATIAL VIRTUAL      
+    
+    myhf = mol.HF.run() 
+    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
+      
+    F_ao = myhf.get_fock()    
+    C   = myhf.mo_coeff        
+    F_mo = C.T @ F_ao @ C   
+    fock_occ = F_mo[:int(n_occ),:int(n_occ)]
+    fock_vir = F_mo[int(n_occ):,int(n_occ):]
+
+    hcore = mol.intor("int1e_kin") + mol.intor("int1e_nuc")
+    bmo = mycc.mo_coeff
+    bmo_occ = bmo[:, :int(n_occ)]
+    bmo_vir = bmo[:, int(n_occ):]
+
+    hcore_occ = np.einsum("pi,pq,qj->ij", bmo_occ, hcore, bmo_occ, optimize="optimal")
+    hcore_vir = np.einsum("pi,pq,qj->ij", bmo_vir, hcore, bmo_vir, optimize="optimal")#
+    eri = mol.intor("int2e").transpose(0,2,1,3)
+    fock_occ = hcore_occ +\
+            2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal") -\
+            np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal")
+    fock_vir = hcore_vir +\
+                2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
+                np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
+    
+    if spin:
+        # times two for two spin cases.
+        fock_occ_spin = np.zeros((n_occ*2,n_occ*2))
+        fock_vir_spin = np.zeros((n_vir*2,n_vir*2))
+
+        fock_occ_spin[:n_occ,:n_occ] = fock_occ
+        fock_occ_spin[n_occ:,n_occ:] = fock_occ
+
+        fock_vir_spin[:n_vir,:n_vir] = fock_vir
+        fock_vir_spin[n_vir:,n_vir:] = fock_vir
+
+        return fock_occ_spin, fock_vir_spin
+    else:
+        return fock_occ, fock_vir
