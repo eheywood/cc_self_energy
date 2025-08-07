@@ -1,6 +1,5 @@
 import numpy as np
 from pyscf import gto
-from scipy.linalg import block_diag
 import BSE_Helper as bse
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
@@ -62,6 +61,7 @@ if __name__ == "__main__":
             symmetry=False,
             unit="Bohr")
     
+    # BCCD MO's and amplitudes. (use in GW BSE)
     # mo,t2,core_e,vir_e = bse.bccd_t2_amps(mol)
 
     # HF molecular orbitals
@@ -82,13 +82,6 @@ if __name__ == "__main__":
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
     anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
-    # <ij|ab>
-    ijab = np.einsum("pi,qj,pqrs,ra,sb->ijab",core_spinorbs,core_spinorbs,eri_ao,vir_spinorbs,vir_spinorbs,optimize="optimal")
-    #<ia|bj>
-    iabj =  np.einsum("pi,qa,pqrs,rb,sj->iabj",core_spinorbs,vir_spinorbs,eri_ao,vir_spinorbs,core_spinorbs,optimize="optimal")
-    #<ia|bj>
-    iajb =  np.einsum("pi,qa,pqrs,rj,sb->iajb",core_spinorbs,vir_spinorbs,eri_ao,core_spinorbs,vir_spinorbs,optimize="optimal")
-
     # Build the required anti-symmetrised orbitals
     oovv_anti,ooov_anti,vovv_anti,ovvo_anti,ovov_anti = bse.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
 
@@ -107,15 +100,15 @@ if __name__ == "__main__":
     H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
     e, _ = np.linalg.eig(H_rpa)
 
-    print("RPA EIG")
+    # print("RPA EIG")
     # print(np.sort(rpa_eig))
-    np.savetxt("rpa_eig.csv", np.sort(np.real(rpa_eig)), delimiter=',')
+    # np.savetxt("rpa_eig.csv", np.sort(np.real(rpa_eig)), delimiter=',')
 
-    print("RPA HAM EIG")
+    # print("RPA HAM EIG")
     # print(np.sort(np.real(e)))
-    np.savetxt("rpa_ham.csv", np.sort(np.real(e)), delimiter=',')
+    # np.savetxt("rpa_ham.csv", np.sort(np.real(e)), delimiter=',')
 
-    print(max(np.absolute(np.real(np.sort(rpa_eig)-np.sort(e)))))
+    print(np.average(np.absolute(np.real(np.sort(rpa_eig)-np.sort(e)))))
 
 
 
