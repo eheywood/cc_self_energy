@@ -7,7 +7,7 @@ np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
 
 
-def get_RPA_amps(vir_e, core_e, ovvo_anti, oo_vv_anti, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
+def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
     # construct A and B and use supermatrix solver to get eigenvectors and values
     e_diff = vir_e.reshape(-1,1) - core_e
     A = -np.einsum("iabj->iajb", ovvo_anti) 
@@ -43,6 +43,17 @@ def get_GW_BSE_amps(X_rpa,Y_rpa,eig_rpa,vir_gwe, core_gwe,ooov_anti,vovv_anti,oo
 
     return eigW, XW, YW
     
+def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) -> np.ndarray:
+    
+    H_rpa = np.zeros((n_occ,n_vir,n_occ,n_vir))
+    e_diff = vir_e.reshape(-1,1) - core_e
+
+    term_1 = np.einsum("ai,ij,ab->iajb", e_diff,np.identity(n_occ),np.identity(n_vir),optimize='optimal')
+    term_2 = -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal')
+    term_3 = np.einsum("ikbc,jkca->iajb",oovv_anti,t2,optimize='optimal')
+    H_rpa = term_1 + term_2 + term_3
+
+    return H_rpa
 if __name__ == "__main__":
 
     mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
@@ -51,7 +62,15 @@ if __name__ == "__main__":
             symmetry=False,
             unit="Bohr")
     
-    mo,t2,core_e,vir_e = bse.bccd_t2_amps(mol)
+    # mo,t2,core_e,vir_e = bse.bccd_t2_amps(mol)
+
+    # HF molecular orbitals
+    myhf = mol.HF.run() 
+    mo = myhf.mo_coeff
+
+    # Orbital energies
+    core_e = np.array(list(myhf.mo_energy[:1]) + list(myhf.mo_energy[:1]))
+    vir_e = np.array(list(myhf.mo_energy[1:]) + list(myhf.mo_energy[1:]))
 
     core_spinorbs, vir_spinorbs =  bse.get_spinorbs(mo)
 
@@ -74,20 +93,29 @@ if __name__ == "__main__":
     oovv_anti,ooov_anti,vovv_anti,ovvo_anti,ovov_anti = bse.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
 
     # Self energies (in eV)
-    core_gwe, vir_gwe = bse.get_self_energy(t2,oovv_anti)
-    core_gwe = np.diag(core_gwe)
-    vir_gwe = np.diag(vir_gwe)
+    # core_gwe, vir_gwe = bse.get_self_energy(t2,oovv_anti)
+    # core_gwe = np.diag(core_gwe)
+    # vir_gwe = np.diag(vir_gwe)
 
     # Solve RPA equation to get W
     rpa_eig, X_rpa, Y_rpa = get_RPA_amps(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir)
-#     m_len = rpa_eig.shape[0]
-#     X = X_rpa.reshape((n_occ,n_vir,m_len))
-#     Y = Y_rpa.reshape((n_occ,n_vir,m_len))
     
     t_coeffic = Y_rpa@np.linalg.inv(X_rpa)
-    print(t_coeffic.shape)
     t_coeffic = t_coeffic.reshape((n_occ,n_occ,n_vir,n_vir))
-    print(t_coeffic)
+
+    H_rpa = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir, t_coeffic)
+    H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
+    e, _ = np.linalg.eig(H_rpa)
+
+    print("RPA EIG")
+    # print(np.sort(rpa_eig))
+    np.savetxt("rpa_eig.csv", np.sort(np.real(rpa_eig)), delimiter=',')
+
+    print("RPA HAM EIG")
+    # print(np.sort(np.real(e)))
+    np.savetxt("rpa_ham.csv", np.sort(np.real(e)), delimiter=',')
+
+    print(max(np.absolute(np.real(np.sort(rpa_eig)-np.sort(e)))))
 
 
 
