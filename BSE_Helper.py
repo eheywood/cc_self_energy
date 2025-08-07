@@ -234,7 +234,7 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndar
 
 def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
     # SPATIAL OCCUPIED AND SPATIAL VIRTUAL      
-    
+
     myhf = mol.HF.run() 
     mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
       
@@ -258,6 +258,9 @@ def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndar
     fock_vir = hcore_vir +\
                 2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
                 np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
+    
+    print(fock_vir.shape)
+    print(fock_occ.shape)
     
     if spin:
         # times two for two spin cases.
