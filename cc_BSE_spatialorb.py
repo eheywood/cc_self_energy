@@ -1,6 +1,6 @@
 import numpy as np
 from pyscf import gto, scf, cc
-from scipy.linalg.lapack import dgeev 
+import BSE_Helper as bse
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
@@ -21,36 +21,6 @@ def get_selfenergy_spatial(t2,oovv, goovv):
     selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
     return selfener_occ, selfener_vir
 
-
-def build_fock_matrices_spatial(mol)-> tuple[np.ndarray,np.ndarray]:
-
-    mf = scf.HF(mol)     
-    mf.kernel()        
-
-    myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
-      
-    F_ao = mf.get_fock()    
-    C   = mf.mo_coeff        
-    F_mo = C.T @ F_ao @ C   
-    fock_occ = F_mo[:int(n_occ),:int(n_occ)]
-    fock_vir = F_mo[int(n_occ):,int(n_occ):]
-
-    hcore = mol.intor("int1e_kin") + mol.intor("int1e_nuc")
-    bmo = mycc.mo_coeff
-    bmo_occ = bmo[:, :int(n_occ)]
-    bmo_vir = bmo[:, int(n_occ):]
-
-    hcore_occ = np.einsum("pi,pq,qj->ij", bmo_occ, hcore, bmo_occ, optimize="optimal")
-    hcore_vir = np.einsum("pi,pq,qj->ij", bmo_vir, hcore, bmo_vir, optimize="optimal")#
-    eri = mol.intor("int2e").transpose(0,2,1,3)
-    fock_occ = hcore_occ +\
-            2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal") -\
-            np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal")
-    fock_vir = hcore_vir +\
-                2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
-                np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
-    return fock_occ, fock_vir
 
 def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2) -> np.ndarray:
 
@@ -127,17 +97,17 @@ if __name__ == "__main__":
     selfener_occ, selfener_vir = get_selfenergy_spatial(t2,oovv,goovv) # n_occ x n_occ, n_vir x n_vir
 
     # build fock matrix
-    fock_occ, fock_vir = build_fock_matrices_spatial(mol) # n_occ x n_occ, n_vir x n_vir
+    fock_occ, fock_vir = bse.build_fock_mat_bccd_spatial(mol,n_occ,n_vir) # n_occ x n_occ, n_vir x n_vir
 
     # build gfock
     F_ij = selfener_occ + fock_occ
     F_ab = selfener_vir + fock_vir 
 
-    print("occ")
-    print(F_ij/eV_to_Hartree)
+    # print("occ")
+    # print(F_ij/eV_to_Hartree)
 
-    print("vir")
-    print(dgeev(F_ab/eV_to_Hartree))
+    # print("vir")
+    # print(dgeev(F_ab/eV_to_Hartree))
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2)

@@ -10,7 +10,9 @@ def build_gfock(t2, oovv, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray]:
     occ_selfeng, vir_selfeng = bse.get_self_energy(t2,oovv)
 
     # n_occ x n_occ, n_vir x n_vir
-    fock_occ, fock_vir = bse.build_fock_matrices(mol,n_occ,n_vir) 
+    spat_occ = int(n_occ/2)
+    spat_vir = int(n_vir/2)
+    fock_occ, fock_vir = bse.build_fock_mat_bccd_spatial(mol,spat_occ,spat_vir,spin=True) 
 
     F_ij = occ_selfeng + fock_occ
     F_ab = vir_selfeng + fock_vir
