@@ -33,9 +33,10 @@ def get_GW_BSE_amps(X_rpa,Y_rpa,eig_rpa,vir_gwe, core_gwe,ooov_anti,vovv_anti,oo
 def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     # construct A and B and use supermatrix solver to get eigenvectors and values
     e_diff = vir_e.reshape(-1,1) - core_e
-    A = -np.einsum("iabj->iajb", ovvo_anti) 
+    A = -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal') 
     A += np.einsum("ai,ab,ij-> iajb", e_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
-    B = -np.einsum("ijab->iajb", oovv_anti)
+
+    B = np.einsum("ijab->iajb", oovv_anti,optimize='optimal')
 
     print(A.shape)
     print(B.shape)
@@ -45,17 +46,19 @@ def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.n
     return eig, X, Y, A, B
 
 
-def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) -> np.ndarray:
+def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     
     H_rpa = np.zeros((n_occ,n_vir,n_occ,n_vir))
     e_diff = vir_e.reshape(-1,1) - core_e
 
     term_1 = np.einsum("ai,ab,ij->iajb", e_diff,np.identity(n_vir),np.identity(n_occ),optimize='optimal')
     term_2 = -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal')
-    term_3 = np.einsum("ikbc,jkca->iajb",oovv_anti,t2,optimize='optimal')
+
+    term_3 = np.einsum("ikbc,jkca->iajb",oovv_anti,t2, optimize='optimal')
+
     H_rpa = term_1 + term_2 + term_3
 
-    return H_rpa
+    return H_rpa, term_1, term_2, term_3
 
 if __name__ == "__main__":
 
@@ -102,16 +105,34 @@ if __name__ == "__main__":
     A = A.reshape((nA, nA))
     B = B.reshape((nB, nB))
 
-    t_coeffic = Y_rpa@np.linalg.inv(X_rpa)
-    # t_coeffic = t_coeffic.reshape((n_occ,n_occ,n_vir,n_vir))
+    t = Y_rpa@np.linalg.inv(X_rpa)
+    t_reshaped = t.reshape((n_occ,n_vir,n_occ,n_vir))
+    t_reshaped = -np.einsum("iajb->ijab",t_reshaped,optimize='optimal')
 
-    # H_rpa = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir, t_coeffic)
-    H_rpa = A + B@t_coeffic
-    # H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
+    H_rpa,term1,term2,term3 = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir,t_reshaped)
+
+    # print("A check")
+    # print(np.average(np.absolute((np.sort(A.reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term1+term2)))))
+
+
+    print("B check")
+    print(np.average(np.absolute(np.sort((B@t).reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term3))))
+
+    # print(B.shape)
+    # print(t.shape)
+    # print((B@t).shape)
+    
+    H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
     e, _ = np.linalg.eig(H_rpa)
 
-    print("Average diff: ")
+    H_rpa_mat = A + B@t
+    e_mat, _ = np.linalg.eig(H_rpa_mat)
+
+    print("Average einsum diff: ")
     print(np.average(np.absolute(np.real(np.sort(rpa_eig)-np.sort(e)))))
+
+    print("Average Matrix diff: ")
+    print(np.average(np.absolute(np.real(np.sort(rpa_eig)-np.sort(e_mat)))))
 
 
 
