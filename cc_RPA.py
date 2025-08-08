@@ -57,7 +57,9 @@ def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) ->
     term_a = np.einsum("ikbc->ibkc",oovv_anti)
     term_b = np.einsum("jkca->kcja",t2)
 
-    term_3 = np.einsum("ibkc,kcja->ibja",term_a,term_b, optimize='optimal')
+    # term_3 = np.einsum("ibkc,kcja->ibja",term_a,term_b, optimize='optimal')
+
+    term_3 = np.einsum("ikbc,jkca->ibja",oovv_anti,t2, optimize='optimal')
 
     H_rpa = term_1 + term_2 + term_3
 
@@ -110,7 +112,7 @@ if __name__ == "__main__":
 
     t = Y_rpa@np.linalg.inv(X_rpa)
     t_reshaped = t.reshape((n_occ,n_vir,n_occ,n_vir))
-    t_reshaped = np.einsum("jbia->ijba",t_reshaped,optimize='optimal')
+    t_reshaped = np.einsum("iajb->ijba",t_reshaped,optimize='optimal')
 
     H_rpa,term1,term2,term3 = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir,t_reshaped)
 
