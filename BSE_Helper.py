@@ -201,11 +201,11 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndar
     myhf = mol.HF.run() 
     mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
 
-    print(mycc.e_tot)
+    #print(mycc.e_tot)
     mo = mycc.mo_coeff
 
-    print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
-    print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
+    #print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
+    #print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
 
     t2 = mycc.t2
 
@@ -214,7 +214,7 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndar
     n_vir = t2.shape[2]
 
     t_ijab = t2
-    print(t2.reshape(-1))
+    #print(t2.reshape(-1))
     t_ijba = -np.einsum("ijab->ijba", t2,optimize='optimal')
 
     t2_spin = np.zeros((n_occ*2,n_occ*2,n_vir*2,n_vir*2))

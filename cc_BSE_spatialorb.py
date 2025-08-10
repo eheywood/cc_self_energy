@@ -22,7 +22,7 @@ def get_selfenergy_spatial(t2,oovv, goovv):
     return selfener_occ, selfener_vir
 
 
-def build_fock_matrices_spatial(mol)-> tuple[np.ndarray,np.ndarray]:
+def build_fock_matrices_spatial(mycc)-> tuple[np.ndarray,np.ndarray]:
 
     mf = scf.HF(mol)     
     mf.kernel()        
@@ -31,10 +31,6 @@ def build_fock_matrices_spatial(mol)-> tuple[np.ndarray,np.ndarray]:
     mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
       
     F_ao = mf.get_fock()    
-    C   = mf.mo_coeff        
-    F_mo = C.T @ F_ao @ C   
-    fock_occ = F_mo[:int(n_occ),:int(n_occ)]
-    fock_vir = F_mo[int(n_occ):,int(n_occ):]
 
     hcore = mol.intor("int1e_kin") + mol.intor("int1e_nuc")
     bmo = mycc.mo_coeff
@@ -57,13 +53,13 @@ def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2) -> np.ndarray:
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
-    nspincase = 2
+    nspincase = 4
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
     
-    for i in range(2):
+    for i in range(nspincase):
         H_bse[:,:,:,:,i] = F_abij - F_ijab
 
-        if i == 0:
+        if i == 0 or i == 1:
             # ispincase = 1  or 2
 
             # ovvo term
