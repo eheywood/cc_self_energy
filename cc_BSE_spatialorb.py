@@ -103,12 +103,6 @@ if __name__ == "__main__":
     F_ij = selfener_occ + fock_occ
     F_ab = selfener_vir + fock_vir 
 
-    # print("occ")
-    # print(F_ij/eV_to_Hartree)
-
-    # print("vir")
-    # print(dgeev(F_ab/eV_to_Hartree))
-
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2)
     
@@ -116,6 +110,8 @@ if __name__ == "__main__":
     e, v = np.linalg.eig(H_bse)
     print(e.shape)
     print(np.real(e))
+
+    np.savetxt("spatial_eig.csv",np.sort(np.real(e)),delimiter=',')
 
 
     

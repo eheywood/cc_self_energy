@@ -26,7 +26,7 @@ def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
 
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir))
     
-    H_bse = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal') + np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
+    H_bse = F_abij - F_ijab + np.einsum("iabj->iajb", ovvo,optimize='optimal') + np.einsum("ikbc, jkca ->ibja",oovv, t2, optimize='optimal')
     
     return H_bse
 
@@ -68,7 +68,6 @@ if __name__ == "__main__":
     hbse = hbse.reshape((n_occ*n_vir,n_occ*n_vir))
     
     e, v = np.linalg.eig(hbse)
-    print(e)
 
-    np.savetxt("eigenvals_spin.csv", np.sort(np.real(e)), delimiter=',')
+    np.savetxt("spin_eig.csv", np.sort(np.real(e)), delimiter=',')
 
