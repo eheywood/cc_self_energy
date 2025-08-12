@@ -114,7 +114,7 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, govov, t2) -> np.nd
             
             term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
             term2 = -np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
-            term3 = - np.einsum("ikbc, jkac -> ibja", goovv,t2,optimize="optimal")
+            term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
             H_bse[:,:,:,:,i] += term1 + term2 + term3
 
         else:
@@ -153,17 +153,39 @@ if __name__ == "__main__":
     #             symmetry=False,
     #             unit="Bohr")
 
-    mol = gto.M(atom="C -0.00234503 0.00000000 0.87125063 \
-            C -1.75847785 0.00000000 -1.34973671 \
-            O 2.27947397 0.00000000 0.71968028 \
-            H -0.92904537 0.00000000 2.73929404 \
-            H -2.97955463 1.66046488 -1.25209463 \
-            H -2.97955463 -1.66046488 -1.25209463 \
-            H -0.70043433 0.00000000 -3.11066412",
-        basis='aug-cc-pVTZ',
-        spin=0,
-        symmetry=False,
-        unit="Bohr")
+
+    # mol = gto.M(
+    #     atom = """C -0.00234503 0.00000000 0.87125063
+    #             C -1.75847785 0.00000000 -1.34973671
+    #             O  2.27947397 0.00000000 0.71968028
+    #             H -0.92904537 0.00000000 2.73929404
+    #             H -2.97955463 1.66046488 -1.25209463
+    #             H -2.97955463 -1.66046488 -1.25209463
+    #             H -0.70043433 0.00000000 -3.11066412""",
+    #     basis = "aug-cc-pVTZ",  
+    #     spin = 0,
+    #     symmetry = False,
+    #     unit = "Bohr",
+    # )
+
+    # mol = gto.M(
+    # atom = """N 0.12804615 0.00000000 0.00000000
+    #         H -0.59303935 0.88580079 -1.53425197
+    #         H -0.59303935 -1.77160157 0.00000000
+    #         H -0.59303935 0.88580079 1.53425197""",
+    # basis = "aug-cc-pVTZ",  
+    # spin = 0,
+    # symmetry = False,
+    # unit = "Bohr",
+    # )
+    
+    mol = gto.M(
+    atom = """C 0.00000000 0.00000000 1.17922927
+                C 0.00000000 0.00000000 -1.1792292""",
+    basis = "aug-cc-pVTZ",  
+    spin = 0,
+    symmetry = False,
+    unit = "Bohr")
 
 
     # get molecular orbitals and t2 amplitudes
@@ -178,15 +200,12 @@ if __name__ == "__main__":
     n_occ_spatial = int(t2.shape[0])
     n_vir_spatial = int(t2.shape[2])
 
-    
-
     eri_ao = mol.intor('int2e') # two e integral
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
     anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
     core_spatialorbs = mo[:, :n_occ_spatial]
     vir_spatialorbs = mo[:, n_occ_spatial:]
-
 
     # Build the required anti-symmetrised orbitals
     oovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spatialorbs, core_spatialorbs, anti_eri_ao, vir_spatialorbs, vir_spatialorbs, optimize="optimal")
@@ -207,6 +226,8 @@ if __name__ == "__main__":
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, govov, t2)
+    np.savetxt("spatial_eig.csv", np.linalg.eig(hbse[:,:,:,:,0].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial)))
+
     hbse_sing = sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
     hbse_trip = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
 
@@ -218,7 +239,7 @@ if __name__ == "__main__":
     print(np.real(np.sort(singE)/eV_to_Hartree))
     print("Triplet excitation:")
     print(np.sort(tripE)/eV_to_Hartree)
-    
+
 
     with open("results.txt", "a", encoding="utf-8") as f:
         f.write("acetaldehyde, spin-free-orb\n")
