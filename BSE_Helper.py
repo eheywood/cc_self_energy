@@ -63,7 +63,7 @@ def super_matrix_solver(A, B):
     Y = pos_v[nA:, :]
     return pos_e, X, Y
 
-def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
+def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
     """Gets the core and virtual spin orbitals from a list of molecular orbitals.
 
     Parameters
@@ -77,10 +77,17 @@ def get_spinorbs(mo:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
         Core spinorbitals, virtual spin orbitals
     """
 
+    print(mo.shape)
+    n_occ_spin = n_occ_spatial*2
+    n_vir_spin = n_vir_spatial*2
     # Core and Virtual Orbitals (spatial orbital basis)
-    core_spatialorbs = mo[:, 0].reshape(-1,1)
-    vir_spatialorbs = mo[:, 1:]
-
+    core_spatialorbs = mo[:,:n_occ_spatial]
+    #.reshape(-1,n_occ_spatial)
+    vir_spatialorbs = mo[:,n_occ_spatial:]
+    #.reshape(-1,n_vir_spatial)
+    print(f"core spatial shape: {core_spatialorbs.shape}")
+    print(f"vir spatial shape: {vir_spatialorbs.shape}")
+    
     # Convert core and virtual orbitals into spin-orbital form. The first half of the columns will be alpha spin orbs, the
     # next half of the columns will be beta spin orbs
     core_spinorbs = block_diag(core_spatialorbs, core_spatialorbs)
@@ -185,7 +192,7 @@ def build_double_ints(core_spinorbs:np.ndarray,
 
     return oovv,ooov,vovv,ovvo,ovov
 
-def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int, int]:
     """ Calculates the bccd amplitudes as well as returing the molecular orbitals and orbital energies.
 
     Parameters
@@ -199,14 +206,10 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndar
         molecular orbitals, t2 amplitudes, core orbital energies, virtual orbital energies.
     """
     myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
+    mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
 
     #print(mycc.e_tot)
     mo = mycc.mo_coeff
-
-    #print(f'Max. value in BCCD T1 amplitudes {abs(mycc.t1).max()}')
-    #print(f'Max. value in BCCD T2 amplitudes {abs(mycc.t2).max()}')
-
     t2 = mycc.t2
 
     # Get number of spatial orbitals
@@ -230,13 +233,13 @@ def bccd_t2_amps(mol:gto.Mole) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndar
     vir_e = np.array(list(myhf.mo_energy[1:]) + list(myhf.mo_energy[1:]))
 
     # print(t2_spin)
-    return mo, t2_spin, core_e, vir_e
+    return mo, t2_spin, core_e, vir_e, n_occ, n_vir
 
 def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
     # SPATIAL OCCUPIED AND SPATIAL VIRTUAL      
 
     myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
+    mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
       
     F_ao = myhf.get_fock()    
     C   = myhf.mo_coeff        
@@ -276,3 +279,30 @@ def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndar
         return fock_occ_spin, fock_vir_spin
     else:
         return fock_occ, fock_vir
+    
+def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
+    hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
+    hbse_new += hbse[:n_occ_spatial,n_vir_spatial:,n_occ_spatial:,:n_vir_spatial] #iajb->abba
+    hbse_new += hbse[n_occ_spatial:,n_vir_spatial:,n_occ_spatial:,n_vir_spatial:] #iajb->bbbb
+    
+    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+def trip_excitation(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
+    hbse_new -= hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
+    hbse_new -= hbse[:n_occ_spatial,n_vir_spatial:,n_occ_spatial:,:n_vir_spatial] #iajb->abba
+    hbse_new += hbse[n_occ_spatial:,n_vir_spatial:,n_occ_spatial:,n_vir_spatial:] #iajb->bbbb
+    
+    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial,n_vir_spatial:,:n_occ_spatial,n_vir_spatial:] #iajb->abab
+    hbse_new -= hbse[:n_occ_spatial,n_vir_spatial:,n_occ_spatial:,:n_vir_spatial] #iajb->abba
+    hbse_new -= hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
+    hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,n_occ_spatial:,:n_vir_spatial] #iajb->baba
+    
+    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)

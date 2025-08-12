@@ -30,20 +30,64 @@ def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
     
     return H_bse
 
+def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
+    hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
+    hbse_new += hbse[:n_occ_spatial,n_vir_spatial:,n_occ_spatial:,:n_vir_spatial] #iajb->abba
+    hbse_new += hbse[n_occ_spatial:,n_vir_spatial:,n_occ_spatial:,n_vir_spatial:] #iajb->bbbb
+    
+    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+def trip_excitation(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
+    hbse_new -= hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
+    hbse_new -= hbse[:n_occ_spatial,n_vir_spatial:,n_occ_spatial:,:n_vir_spatial] #iajb->abba
+    hbse_new += hbse[n_occ_spatial:,n_vir_spatial:,n_occ_spatial:,n_vir_spatial:] #iajb->bbbb
+    
+    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial,n_vir_spatial:,:n_occ_spatial,n_vir_spatial:] #iajb->abab
+    hbse_new -= hbse[:n_occ_spatial,n_vir_spatial:,n_occ_spatial:,:n_vir_spatial] #iajb->abba
+    hbse_new -= hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
+    hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,n_occ_spatial:,:n_vir_spatial] #iajb->baba
+    
+    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+
 if __name__ == "__main__":
 
-    # Define Molecule to calculate amplitudes and mo for
-    mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
-                basis='cc-pVTZ',
-                spin=0,
-                symmetry=False,
-                unit="Bohr")
-    
+    # #Define Molecule to calculate amplitudes and mo for
+    # mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
+    #             basis='cc-pVTZ',
+    #             spin=0,
+    #             symmetry=False,
+    #             unit="Bohr")
+
+    mol = gto.M(atom="C -0.00234503 0.00000000 0.87125063 \
+                C -1.75847785 0.00000000 -1.34973671 \
+                O 2.27947397 0.00000000 0.71968028 \
+                H -0.92904537 0.00000000 2.73929404 \
+                H -2.97955463 1.66046488 -1.25209463 \
+                H -2.97955463 -1.66046488 -1.25209463 \
+                H -0.70043433 0.00000000 -3.11066412",
+            basis='aug-cc-pVTZ',
+            spin=0,
+            symmetry=False,
+            unit="Bohr")
+
     # get molecular orbitals and t2 amplitudes
-    mo,t2,_,_ = bse.bccd_t2_amps(mol)   
-    core_spinorbs, vir_spinorbs = bse.get_spinorbs(mo)
+    mo,t2,_,_,n_occ_spatial,n_vir_spatial = bse.bccd_t2_amps(mol)
+
+    print(t2.shape)  
+    core_spinorbs, vir_spinorbs = bse.get_spinorbs(mo, t2.shape, n_occ_spatial,n_vir_spatial)
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
+    n_occ_spatial = int(core_spinorbs.shape[1]/2)
+    n_vir_spatial = int(vir_spinorbs.shape[1]/2)
 
     # Build electron repulsion integrals
     _, eri_ao = bse.spinor_one_and_two_e_int(mol)                   # Find eri in spinor form
@@ -65,9 +109,24 @@ if __name__ == "__main__":
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2, n_occ, n_vir)
-    hbse = hbse.reshape((n_occ*n_vir,n_occ*n_vir))
+    # hbse = hbse.reshape((n_occ*n_vir,n_occ*n_vir))
     
-    e, v = np.linalg.eig(hbse)
+    #e, v = np.linalg.eig(hbse)
 
-    np.savetxt("spin_eig.csv", np.sort(np.real(e)), delimiter=',')
+    hbse_sing = sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_trip = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    #hbse_trip2 = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    singE, _ = np.linalg.eig(hbse_sing)
+    tripE, _ = np.linalg.eig(hbse_trip)
+    #tripE2, _ = np.linalg.eig(hbse_trip2)
+    print(f"length of single excitation:{len(singE)}")
+    print("Singlet excitation:")
+    print(np.sort(singE)/eV_to_Hartree)
+    print("Triplet excitation:")
+    print(np.sort(tripE)/eV_to_Hartree)
 
+    with open("results.txt", "a", encoding="utf-8") as f:
+        f.write("acetaldehyde, spin-orb\n")
+        f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV_to_Hartree}\n")
+        f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV_to_Hartree}\n")
+        f.write("\n")
