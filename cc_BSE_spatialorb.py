@@ -22,18 +22,46 @@ def get_selfenergy_spatial(t2,oovv, goovv):
     return selfener_occ, selfener_vir
 
 
+
+def build_fock_matrices_spatial(mycc)-> tuple[np.ndarray,np.ndarray]:
+
+    mf = scf.HF(mol)     
+    mf.kernel()        
+
+    myhf = mol.HF.run() 
+    mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
+      
+    F_ao = mf.get_fock()    
+
+    hcore = mol.intor("int1e_kin") + mol.intor("int1e_nuc")
+    bmo = mycc.mo_coeff
+    bmo_occ = bmo[:, :int(n_occ)]
+    bmo_vir = bmo[:, int(n_occ):]
+
+    hcore_occ = np.einsum("pi,pq,qj->ij", bmo_occ, hcore, bmo_occ, optimize="optimal")
+    hcore_vir = np.einsum("pi,pq,qj->ij", bmo_vir, hcore, bmo_vir, optimize="optimal")#
+    eri = mol.intor("int2e").transpose(0,2,1,3)
+    fock_occ = hcore_occ +\
+            2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal") -\
+            np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal")
+    fock_vir = hcore_vir +\
+                2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
+                np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
+    return fock_occ, fock_vir
+
+
 def build_bse(F_ij, F_ab, n_occ, n_vir, goovv, ovvo, govov, t2) -> np.ndarray:
 
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
-    nspincase = 2
+    nspincase = 4
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
     
-    for i in range(2):
+    for i in range(nspincase):
         H_bse[:,:,:,:,i] = F_abij - F_ijab
 
-        if i == 0:
+        if i == 0 or i == 1:
             # ispincase = 1  or 2
 
             # ovvo term
