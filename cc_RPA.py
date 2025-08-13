@@ -69,7 +69,7 @@ def get_GW_BSE_amps(X_rpa,Y_rpa,eig_rpa,vir_gwe, core_gwe,ooov_anti,vovv_anti,oo
 def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     # construct A and B and use supermatrix solver to get eigenvectors and values
     e_diff = vir_e.reshape(-1,1) - core_e
-    A = -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal') 
+    A = np.einsum("iabj->iajb", ovvo_anti,optimize='optimal') 
     A += np.einsum("ai,ab,ij-> iajb", e_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
 
     B = np.einsum("ijab->iajb", oovv_anti,optimize='optimal')
@@ -88,7 +88,7 @@ def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) ->
     e_diff = vir_e.reshape(-1,1) - core_e
 
     term_1 = np.einsum("ai,ab,ij->iajb", e_diff,np.identity(n_vir),np.identity(n_occ),optimize='optimal')
-    term_2 = -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal')
+    term_2 = np.einsum("iabj->iajb", ovvo_anti,optimize='optimal')
 
     term_a = np.einsum("ikbc->ibkc",oovv_anti)
     term_b = np.einsum("jkca->kcja",t2)
@@ -103,50 +103,49 @@ def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) ->
 
 if __name__ == "__main__":
 
-    # mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
-    #         basis='cc-pVTZ',
-    #         spin=0,
-    #         symmetry=False,
-    #         unit="Bohr")
+#     mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
+#             basis='cc-pVTZ',
+#             spin=0,
+#             symmetry=False,
+#             unit="Bohr")
 
-    # mol = gto.M(
-    #     atom = """C -0.00234503 0.00000000 0.87125063
-    #             C -1.75847785 0.00000000 -1.34973671
-    #             O  2.27947397 0.00000000 0.71968028
-    #             H -0.92904537 0.00000000 2.73929404
-    #             H -2.97955463 1.66046488 -1.25209463
-    #             H -2.97955463 -1.66046488 -1.25209463
-    #             H -0.70043433 0.00000000 -3.11066412""",
-    #     basis = "aug-cc-pVTZ",  
-    #     spin = 0,
-    #     symmetry = False,
-    #     unit = "Bohr",
-    # )
 
-    # mol = gto.M(
-    # atom = """N 0.12804615 0.00000000 0.00000000
-    #         H -0.59303935 0.88580079 -1.53425197
-    #         H -0.59303935 -1.77160157 0.00000000
-    #         H -0.59303935 0.88580079 1.53425197""",
-    # basis = "aug-cc-pVTZ",  
-    # spin = 0,
-    # symmetry = False,
-    # unit = "Bohr",
-    # )
-
+#    mol = gto.M(
+#        atom = """C -0.00234503 0.00000000 0.87125063
+#                C -1.75847785 0.00000000 -1.34973671
+#                O  2.27947397 0.00000000 0.71968028
+#                H -0.92904537 0.00000000 2.73929404
+#                H -2.97955463 1.66046488 -1.25209463
+#                H -2.97955463 -1.66046488 -1.25209463
+#                H -0.70043433 0.00000000 -3.11066412""",
+#        basis = "aug-cc-pVTZ",  
+#        spin = 0,
+#        symmetry = False,
+#        unit = "Bohr",
+#    )
+#    
+    
     mol = gto.M(
-    atom = """C 0.00000000 0.00000000 1.17922927
-                C 0.00000000 0.00000000 -1.1792292""",
+    atom = """N 0.12804615 0.00000000 0.00000000
+              H -0.59303935 0.88580079 -1.53425197
+              H -0.59303935 -1.77160157 0.00000000
+              H -0.59303935 0.88580079 1.53425197""",
     basis = "aug-cc-pVTZ",  
     spin = 0,
     symmetry = False,
-    unit = "Bohr")
+    unit="Bohr",
+)
+#    mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
+#    basis='aug-cc-pVTZ',
+#    spin=0,
+#    symmetry=False,
+#    unit="Bohr")
     
     # BCCD MO's and amplitudes. (use in GW BSE)
     # mo,t2,core_e,vir_e = bse.bccd_t2_amps(mol)
 
     # HF molecular orbitals (use in RPA only)
-    myhf = mol.HF.run() 
+    myhf = mol.HF.run()
     mo = myhf.mo_coeff
 
     n_mo = myhf.mo_coeff.shape[1]
@@ -223,7 +222,8 @@ if __name__ == "__main__":
     print(np.sort(tripE)/eV_to_Hartree)
 
     with open("results.txt", "a", encoding="utf-8") as f:
-        f.write("acetaldehyde, RPA\n")
+        f.write("Acetaldehyde, RPA\n")
+        #f.write("Beryllium, RPA\n")
         f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV_to_Hartree}\n")
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV_to_Hartree}\n")
         f.write("\n")

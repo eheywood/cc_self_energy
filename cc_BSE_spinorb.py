@@ -67,38 +67,38 @@ if __name__ == "__main__":
     #             symmetry=False,
     #             unit="Bohr")
 
-    # mol = gto.M(
-    #     atom = """C -0.00234503 0.00000000 0.87125063
-    #             C -1.75847785 0.00000000 -1.34973671
-    #             O  2.27947397 0.00000000 0.71968028
-    #             H -0.92904537 0.00000000 2.73929404
-    #             H -2.97955463 1.66046488 -1.25209463
-    #             H -2.97955463 -1.66046488 -1.25209463
-    #             H -0.70043433 0.00000000 -3.11066412""",
-    #     basis = "aug-cc-pVTZ",  
-    #     spin = 0,
-    #     symmetry = False,
-    #     unit = "Bohr",
-    # )
 
-    # mol = gto.M(
-    #     atom = """N 0.12804615 0.00000000 0.00000000
-    #             H -0.59303935 0.88580079 -1.53425197
-    #             H -0.59303935 -1.77160157 0.00000000
-    #             H -0.59303935 0.88580079 1.53425197""",
-    #     basis = "aug-cc-pVTZ",  
-    #     spin = 0,
-    #     symmetry = False,
-    #     unit = "Bohr",
-    #     )
-    
+#    mol = gto.M(
+#        atom = """C -0.00234503 0.00000000 0.87125063
+#                C -1.75847785 0.00000000 -1.34973671
+#                O  2.27947397 0.00000000 0.71968028
+#                H -0.92904537 0.00000000 2.73929404
+#                H -2.97955463 1.66046488 -1.25209463
+#                H -2.97955463 -1.66046488 -1.25209463
+#                H -0.70043433 0.00000000 -3.11066412""",
+#        basis = "aug-cc-pVTZ",  
+#        spin = 0,
+#        symmetry = False,
+#        unit = "Bohr",
+#    )
+
     mol = gto.M(
-        atom = """C 0.00000000 0.00000000 1.17922927
-                  C 0.00000000 0.00000000 -1.1792292""",
+        atom = """N 0.12804615 0.00000000 0.00000000
+                  H -0.59303935 0.88580079 -1.53425197
+                  H -0.59303935 -1.77160157 0.00000000
+                  H -0.59303935 0.88580079 1.53425197""",
         basis = "aug-cc-pVTZ",  
         spin = 0,
         symmetry = False,
-        unit = "Bohr")
+        unit="Bohr",
+    )
+
+#    mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
+#    basis='aug-cc-pVTZ',
+#    spin=0,
+#    symmetry=False,
+#    unit="Bohr")
+
 
     # get molecular orbitals and t2 amplitudes
     mo,t2,_,_,n_occ_spatial,n_vir_spatial = bse.bccd_t2_amps(mol)
@@ -130,8 +130,9 @@ if __name__ == "__main__":
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2, n_occ, n_vir)
-
-    np.savetxt("spin_eig.csv", np.linalg.eig(hbse(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)))
+    # hbse = hbse.reshape((n_occ*n_vir,n_occ*n_vir))
+    
+    #e, v = np.linalg.eig(hbse)
 
     hbse_sing = sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
     hbse_trip = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
@@ -146,7 +147,8 @@ if __name__ == "__main__":
     print(np.sort(tripE)/eV_to_Hartree)
 
     with open("results.txt", "a", encoding="utf-8") as f:
-        f.write("acetaldehyde, spin-orb\n")
+        f.write("Acetaldehyde, spin-orb\n")
+        #f.write("Beryllium, spin-orb\n")
         f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV_to_Hartree}\n")
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV_to_Hartree}\n")
         f.write("\n")

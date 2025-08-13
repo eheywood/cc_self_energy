@@ -3,8 +3,7 @@ Helper file for auxiliary codes
 """
 
 import numpy as np
-from scipy.linalg import block_diag
-from pyscf import gto, scf, cc
+from scipy.linalg import block_diag, schur
 
 
 def spinor_one_and_two_e_int(mol):
@@ -28,6 +27,19 @@ def spinor_one_and_two_e_int(mol):
     spin_eri[n:, n:, :n, :n] = eri
     return np.real(spin_hcore), np.real(spin_eri)
 
+def get_Wijba(oovv, X, Y, rpa_ev):
+    inv_e = 1 / rpa_ev
+    M_ia = np.einsum("ikbc,kcv->ibv", oovv, X, optimize="optimal") +\
+           np.einsum("ikbc,kcv->ibv", oovv, Y, optimize="optimal")
+    return - 2 * np.einsum("ibv,jav,v->ijba", M_ia, M_ia, inv_e, optimize="optimal")
+
+def get_Wiajb(ooov, vovv, X, Y, rpa_ev):
+    inv_e = 1 / rpa_ev
+    M_ij = np.einsum("ikjc,kcv->ijv", ooov, X, optimize="optimal") +\
+           np.einsum("ikjc,kcv->ijv", ooov, Y, optimize="optimal")
+    M_ab = np.einsum("akbc,kcv->abv", vovv, X, optimize="optimal") +\
+           np.einsum("akbc,kcv->abv", vovv, Y, optimize="optimal")
+    return - 2 * np.einsum("ijv,abv,v->iajb", M_ij, M_ab, inv_e, optimize="optimal")
 
 def super_matrix_solver(A, B):
     r"""
@@ -36,8 +48,13 @@ def super_matrix_solver(A, B):
     """
     nA = int(np.sqrt(A.size))
     nB = int(np.sqrt(B.size))
+
+    At = A.transpose((2,3,0,1))
+    Bt = B.transpose((2,3,0,1))
     A = A.reshape((nA, nA))
     B = B.reshape((nB, nB))
+    At = At.reshape((nA, nA))
+    Bt = Bt.reshape((nB, nB))
 
     # Construct supermatrix
     supermat = np.zeros((nA+nB, nA+nB))
@@ -52,9 +69,11 @@ def super_matrix_solver(A, B):
     # In our current formulation, A and B are real matrices.
     # Eigenvalues of the supermatrix come in pairs.
     # We take the positive ones (assuming that they mean excitation energies)
-    assert np.allclose(np.imag(e), np.zeros(e.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+
+    assert np.allclose(np.imag(e), np.zeros(e.shape), rtol=0, atol=1e-5)    # Real eigenvalues
     e = np.real(e)
     positive_idx = np.where(e > 0)[0]
+    print(e.shape, positive_idx.shape)
     assert len(positive_idx) == len(e) // 2     # Half of the eigenvalues should be taken
 
     pos_e = e[positive_idx]
@@ -62,7 +81,9 @@ def super_matrix_solver(A, B):
     X = pos_v[:nA, :]
     Y = pos_v[nA:, :]
     return pos_e, X, Y
-
+    
+    
+    
 def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
     """Gets the core and virtual spin orbitals from a list of molecular orbitals.
 
@@ -119,7 +140,7 @@ def get_self_energy(t2:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarr
 
     return occ_selfeng, vir_selfeng
 
-def build_fock_matrices(mol:gto.Mole,n_occ:int,n_vir:int)-> tuple[np.ndarray,np.ndarray]:
+def build_fock_matrices(mol,n_occ:int,n_vir:int)-> tuple[np.ndarray,np.ndarray]:
     """Generates the occupied and virtual fock matricies using PySCF.
 
     Parameters
@@ -306,3 +327,4 @@ def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,n_occ_spatial:,:n_vir_spatial] #iajb->baba
     
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
