@@ -32,7 +32,7 @@ def get_self_energy(t2_spin:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.
 def build_gfock(mol,myhf,mycc,t2_spin, oovv, n_occ_spatial,n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
     occ_selfeng, vir_selfeng = get_self_energy(t2_spin,oovv) # n_occ x n_occ, n_vir x n_vir
 
-    fock_occ, fock_vir = helper.build_fock_mat_bccd_spatial(mol,myhf,mycc,n_occ_spatial,n_vir_spatial,spin=True) 
+    fock_occ, fock_vir = helper.bccd_fock_mat(mol,myhf,mycc,n_occ_spatial,n_vir_spatial,spin=True) 
 
     F_ij = occ_selfeng + fock_occ
     F_ab = vir_selfeng + fock_vir
@@ -54,15 +54,15 @@ def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
 def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
     
     # get molecular orbitals and t2 amplitudes
-    _, t2_spin, _, _, _, _ = helper.bccd_t2_amps(mycc,myhf)
+    _, t2, _, _, _, _ = helper.bccd_t2_amps(mycc,myhf)
  
     core_spinorbs, vir_spinorbs = helper.get_spinorbs(mo,n_occ_spatial)
     #n_occ = core_spinorbs.shape[1]
     #n_vir = vir_spinorbs.shape[1]
 
     # Build electron repulsion integrals
-    _, eri_ao = helper.spinor_one_and_two_e_int(mol)                                  # Find eri in spinor form
-    eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")                      # Convert to Physicist's notation
+    _, eri_ao = helper.spinor_one_and_two_e_int(mol)                # Find eri in spinor form
+    eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
     anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
     # Build the required anti-symmetrised orbitals
@@ -73,21 +73,21 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     
     #debugging ###########################################
     def spin_output(t2,mol,myhf,mycc,oovv,n_occ_spatial,n_vir_spatial):
-      selfener_occ_spin, selfener_vir_spin = get_self_energy(t2_spin, oovv)
-      fock_occ_spin, fock_vir_spin = helper.build_fock_mat_bccd_spatial(mol,myhf,mycc,n_occ_spatial,n_vir_spatial,spin=True)
+      selfener_occ_spin, selfener_vir_spin = get_self_energy(t2, oovv)
+      fock_occ_spin, fock_vir_spin = helper.bccd_fock_mat(mol,myhf,mycc,n_occ_spatial,n_vir_spatial,spin=True)
       return selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin
     selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin  = spin_output(t2,mol,myhf,mycc,oovv,n_occ_spatial,n_vir_spatial)
     ###########################################
 
     # n_occ x n_occ, n_vir x n_vir 
-    # Extended fock operator
-    gfock_occ, gfock_vir = build_gfock(mol,myhf,mycc,t2_spin,oovv,n_occ_spatial,n_vir_spatial)
+    # Extended fock operator (fock + self energy)
+    gfock_occ, gfock_vir = build_gfock(mol,myhf,mycc,t2,oovv,n_occ_spatial,n_vir_spatial)
     
     F_ij_v,_,_,_,_ = dgeev(gfock_occ/eV2au)
     F_ab_v,_,_,_,_ = dgeev(gfock_vir/eV2au)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2_spin,n_occ_spin,n_vir_spin)
+    hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2,n_occ_spin,n_vir_spin)
     H = hbse.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin))
     
     val = np.linalg.eigvals(H)

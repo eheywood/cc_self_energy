@@ -3,7 +3,7 @@ Helper file for auxiliary codes
 """
 
 import numpy as np
-from scipy.linalg import block_diag, schur
+from scipy.linalg import block_diag
 
 
 def spinor_one_and_two_e_int(mol):
@@ -48,13 +48,8 @@ def super_matrix_solver(A, B):
     """
     nA = int(np.sqrt(A.size))
     nB = int(np.sqrt(B.size))
-
-    At = A.transpose((2,3,0,1))
-    Bt = B.transpose((2,3,0,1))
     A = A.reshape((nA, nA))
     B = B.reshape((nB, nB))
-    At = At.reshape((nA, nA))
-    Bt = Bt.reshape((nB, nB))
 
     # Construct supermatrix
     supermat = np.zeros((nA+nB, nA+nB))
@@ -69,17 +64,22 @@ def super_matrix_solver(A, B):
     # In our current formulation, A and B are real matrices.
     # Eigenvalues of the supermatrix come in pairs.
     # We take the positive ones (assuming that they mean excitation energies)
-
-    assert np.allclose(np.imag(e), np.zeros(e.shape), rtol=0, atol=1e-5)    # Real eigenvalues
+    assert np.allclose(np.imag(e), np.zeros(e.shape), rtol=0, atol=1e-8)    # Real eigenvalues
     e = np.real(e)
+
     positive_idx = np.where(e > 0)[0]
-    print(e.shape, positive_idx.shape)
     assert len(positive_idx) == len(e) // 2     # Half of the eigenvalues should be taken
 
     pos_e = e[positive_idx]
     pos_v = v[:, positive_idx]
     X = pos_v[:nA, :]
     Y = pos_v[nA:, :]
+
+    assert np.allclose(np.imag(X), np.zeros(X.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    X = np.real(X)
+    assert np.allclose(np.imag(Y), np.zeros(Y.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    Y = np.real(Y)
+
     return pos_e, X, Y
     
     
@@ -252,7 +252,7 @@ def bccd_t2_amps(mycc,myhf) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray
 
     return mo, t2_spin, core_e, vir_e, n_occ, n_vir
 
-def build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
+def bccd_fock_mat(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
     # SPATIAL OCCUPIED AND SPATIAL VIRTUAL      
 
     # myhf = mol.HF.run() 
@@ -296,8 +296,10 @@ def build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> t
         return fock_occ_spin, fock_vir_spin
     else:
         return fock_occ, fock_vir
-    
+
+# SPIN 
 def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
+    print(hbse.dtype)
     hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
     hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
     hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab

@@ -1,5 +1,4 @@
 import numpy as np
-from pyscf import gto, scf, cc
 import BSE_Helper as helper
 from scipy.linalg.lapack import dgeev 
 
@@ -19,34 +18,6 @@ def get_selfenergy_spatial(t2,oovv, goovv):
 
     selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
     return selfener_occ, selfener_vir
-
-
-# def build_fock_matrices_spatial(mycc,mol,n_occ)-> tuple[np.ndarray,np.ndarray]:
-
-#     mf = scf.HF(mol)     
-#     mf.kernel()        
-
-#     myhf = mol.HF.run() 
-#     mycc = cc.BCCD(myhf,conv_tol_normu=1e-8).run()
-      
-#     F_ao = mf.get_fock()    
-
-#     hcore = mol.intor("int1e_kin") + mol.intor("int1e_nuc")
-#     bmo = mycc.mo_coeff
-#     bmo_occ = bmo[:, :int(n_occ)]
-#     bmo_vir = bmo[:, int(n_occ):]
-
-#     hcore_occ = np.einsum("pi,pq,qj->ij", bmo_occ, hcore, bmo_occ, optimize="optimal")
-#     hcore_vir = np.einsum("pi,pq,qj->ij", bmo_vir, hcore, bmo_vir, optimize="optimal")#
-#     eri = mol.intor("int2e").transpose(0,2,1,3)
-#     fock_occ = hcore_occ +\
-#             2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal") -\
-#             np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_occ, bmo_occ, eri, bmo_occ, bmo_occ, optimize="optimal")
-#     fock_vir = hcore_vir +\
-#                 2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
-#                 np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
-#     return fock_occ, fock_vir
-
 
 
 def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govov, t2) -> np.ndarray:
@@ -84,7 +55,7 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govov, t2) ->
 
     return H_bse
 
-def sing_excitation_spatial(hbse, n_occ_spatial, n_vir_spatial):
+def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
     hbse_new += hbse[:,:,:,:,0] #iajb->a,a,a,a
     hbse_new += hbse[:,:,:,:,1] #iajb->baab
@@ -92,7 +63,7 @@ def sing_excitation_spatial(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new += hbse[:,:,:,:,3] #iajb->bbbb
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
 
-def trip_excitation_spatial(hbse, n_occ_spatial, n_vir_spatial):
+def trip_excitation(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
     hbse_new += hbse[:,:,:,:,0] #iajb->a,a,a,a
     hbse_new -= hbse[:,:,:,:,1] #iajb->baab
@@ -111,23 +82,23 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     vir_spatialorbs = mo[:, n_occ_spatial:]
 
 
-    # Build the required anti-symmetrised orbitals
-    oovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spatialorbs, core_spatialorbs, anti_eri_ao, vir_spatialorbs, vir_spatialorbs, optimize="optimal")
-    ovvo = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spatialorbs, vir_spatialorbs, anti_eri_ao, vir_spatialorbs, core_spatialorbs,optimize="optimal") 
-    goovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spatialorbs, core_spatialorbs, eri_ao, vir_spatialorbs, vir_spatialorbs, optimize="optimal")
-    govov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spatialorbs, vir_spatialorbs, eri_ao, core_spatialorbs,vir_spatialorbs, optimize="optimal")
+    # Build the required anti-symmetrised two electron integrals 
+    oovv,_,_,ovvo,_ = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,anti_eri_ao)
+
+    # Build required two electron integrals
+    goovv,_,_,_,govov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,eri_ao)
 
     # build self energy
     selfener_occ, selfener_vir = get_selfenergy_spatial(t2,oovv,goovv) # n_occ x n_occ, n_vir x n_vir
 
     # build fock matrix
-    fock_occ, fock_vir = helper.build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ_spatial, n_vir_spatial,spin=False) # n_occ x n_occ, n_vir x n_vir
+    fock_occ, fock_vir = helper.bccd_fock_mat(mol, myhf, mycc,n_occ_spatial, n_vir_spatial,spin=False) # n_occ x n_occ, n_vir x n_vir
     
     
     #debugging###########################################
     def spa_output(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,t2, oovv, goovv):
       selfener_occ_spa, selfener_vir_spa = get_selfenergy_spatial(t2,oovv, goovv)
-      fock_occ_spa, fock_vir_spa = helper.build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,spin=False)
+      fock_occ_spa, fock_vir_spa = helper.bccd_fock_mat(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,spin=False)
       return selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa
     selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa  = spa_output(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,t2, oovv, goovv)
     #####################################################
@@ -167,8 +138,8 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
         hbse_eig[i*n_occ_spatial*n_vir_spatial:(i+1)*n_occ_spatial*n_vir_spatial] = np.real_if_close(val)
       
-    hbse_sing = sing_excitation_spatial(hbse, n_occ_spatial, n_vir_spatial)
-    hbse_trip = trip_excitation_spatial(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_sing = sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_trip = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
 
     singE, v = np.linalg.eig(hbse_sing)
     tripE, v = np.linalg.eig(hbse_trip)

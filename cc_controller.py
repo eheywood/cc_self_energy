@@ -1,8 +1,9 @@
 import numpy as np
 from pyscf import gto, scf, cc
 import BSE_Helper as helper
-import cc_BSE_spatialorb as ccbsespa
-import cc_BSE_spinorb as ccbsespin
+from cc_BSE_spatialorb import CC_BSE_spinfree
+from cc_BSE_spinorb import CC_BSE_spin
+from cc_RPA import RPA
 
 np.set_printoptions(precision=10, suppress=True, linewidth=100000)
 eV2au = 0.0367493
@@ -63,16 +64,16 @@ n_vir_spin = int(t2.shape[2]*2)
 print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 
 #spin-free
-print('Starting CC BSE calculation in spin-free basis.')
-selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
-  ccbsespa.CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-print('Finished CC BSE calculation in spin-free basis.')
+# print('Starting CC BSE calculation in spin-free basis.')
+# selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
+#   CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+# print('Finished CC BSE calculation in spin-free basis.')
 
-#spin
-print('Starting CC BSE calculation in spin basis.')
-selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
-  ccbsespin.CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-print('Finished CC BSE calculation in spin basis.')
+# #spin
+# print('Starting CC BSE calculation in spin basis.')
+# selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
+#   CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+# print('Finished CC BSE calculation in spin basis.')
 
 
 #debugging
@@ -87,8 +88,9 @@ print('Finished CC BSE calculation in spin basis.')
 # helper.count_matches(fock_occ_spa,  fock_occ_spin, "occ fockener")
 # helper.count_matches(fock_vir_spa,  fock_vir_spin, "vir fockener")
 
-print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
-print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
+# print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
+# print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
+
 #print(f'fock_occ_spin:{fock_occ_spin}')
 #print(f'fock_vir_spin:{fock_vir_spin}')
 
@@ -102,9 +104,9 @@ print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
 # helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
 
-#print('Starting standard RPA calculation.')
-#singEspa, tripEspa = ccbserpa.RPA_CC_BSE_consistency(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-#print('Finished standard RPA calculation.')
+print('Starting standard RPA calculation.')
+singEspa, tripEspa = RPA(mol,myhf,n_occ_spatial,n_vir_spatial)
+print('Finished standard RPA calculation.')
 
 #print('Starting Orca RPA calculation.')
 #singEspa, tripEspa = ccbsespa.RPA_CC_BSE_consistency(mol,mo,myhf,mycc,label,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
