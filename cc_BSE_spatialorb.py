@@ -3,6 +3,7 @@ from pyscf import gto, scf, cc
 import BSE_Helper as helper
 from scipy.linalg.lapack import dgeev 
 
+
 def get_selfenergy_spatial(t2,oovv, goovv):
     selfener_occ_1 = np.einsum('ikab, jkab -> ij', oovv, t2, optimize="optimal")
     selfener_occ_2 = -np.einsum('ikab, jkba -> ij', oovv, t2, optimize="optimal")
@@ -64,12 +65,12 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govov, t2) ->
             # 3 = bbbb
 
             # ovvo term
-            H_bse[:,:,:,:,i] += - np.einsum("iabj->ibja", ovvo, optimize="optimal") # because we are swapping labels
+            H_bse[:,:,:,:,i] += - np.einsum("iabj->iajb", ovvo, optimize="optimal") # because we are swapping labels
             # contraction term
             
             term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
             term2 = -np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
-            term3 = - np.einsum("ikbc, jkac -> ibja", goovv,t2,optimize="optimal")
+            term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
             H_bse[:,:,:,:,i] += term1 + term2 + term3
 
         else:
@@ -121,12 +122,38 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
     # build fock matrix
     fock_occ, fock_vir = helper.build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,spin=False) # n_occ x n_occ, n_vir x n_vir
+    
+    
+    #debugging###########################################
+    def spa_output(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,t2, oovv, goovv):
+      selfener_occ_spa, selfener_vir_spa = get_selfenergy_spatial(t2,oovv, goovv)
+      fock_occ_spa, fock_vir_spa = helper.build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,spin=False)
+      return selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa
+    selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa  = spa_output(mol, myhf, mycc,n_occ_spatial,n_vir_spatial,t2, oovv, goovv)
+    #####################################################
 
     # build gfock
+    #print('1')
+    #print(selfener_occ)
+    #print('2')
+    #print(fock_occ)
+    
     F_ij = selfener_occ + fock_occ
-    F_ab = selfener_vir + fock_vir 
+    #print('3')
+    #print(F_ij)
     F_ij_v,_,_,_,_ = dgeev(F_ij/eV2au)
+    print('\n')
+    print('occ-selfenergy')
+    #print(F_ij_v)
+    
+
+    F_ab = selfener_vir + fock_vir 
+    
+
     F_ab_v,_,_,_,_ = dgeev(F_ab/eV2au)
+    print('\n')
+    print('vir-selfenergy')
+    print(F_ab_v)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     nspincase = 4
@@ -160,4 +187,4 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
         f.write("\n")
         
-    return F_ij_v, F_ab_v, hbse_eig, singE, tripE
+    return selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, F_ij_v, F_ab_v, hbse_eig, singE, tripE
