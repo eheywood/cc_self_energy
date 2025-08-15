@@ -4,15 +4,6 @@ import BSE_Helper as helper
 from scipy.linalg.lapack import dgeev 
 
 
-
-
-
-
-
-
-
-
-
 def get_self_energy(t2_spin:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
     """Calculates the self energy using t2 CC amplitudes. Eq 49 and 50 in the Paper.
 
@@ -63,9 +54,9 @@ def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
 def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
     
     # get molecular orbitals and t2 amplitudes
-    t2_spin = helper.bccd_t2_amps(myhf,t2,n_occ_spatial,n_vir_spatial)
+    _, t2_spin, _, _, _, _ = helper.bccd_t2_amps(mycc,myhf)
  
-    core_spinorbs, vir_spinorbs = helper.get_spinorbs(mo,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+    core_spinorbs, vir_spinorbs = helper.get_spinorbs(mo,n_occ_spatial)
     #n_occ = core_spinorbs.shape[1]
     #n_vir = vir_spinorbs.shape[1]
 
@@ -74,11 +65,8 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")                      # Convert to Physicist's notation
     anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
-    oovv,ooov,vovv,ovvo,ovov = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
-    # goovv = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, core_spinorbs, eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
-
-    # n_occ x n_occ, n_vir x n_vir
-    selfeng_occ, selfeng_vir = get_self_energy(t2_spin,oovv)
+    # Build the required anti-symmetrised orbitals
+    oovv,_,_,ovvo,_ = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
 
     # n_occ x n_occ, n_vir x n_vir
     # fock_occ, fock_vir = helper.build_fock_matrices(mol,n_occ,n_vir)
@@ -91,7 +79,8 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin  = spin_output(t2,mol,myhf,mycc,oovv,n_occ_spatial,n_vir_spatial)
     ###########################################
 
-    # n_occ x n_occ, n_vir x n_vir
+    # n_occ x n_occ, n_vir x n_vir 
+    # Extended fock operator
     gfock_occ, gfock_vir = build_gfock(mol,myhf,mycc,t2_spin,oovv,n_occ_spatial,n_vir_spatial)
     
     F_ij_v,_,_,_,_ = dgeev(gfock_occ/eV2au)
@@ -103,8 +92,8 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     
     val = np.linalg.eigvals(H)
 
-    hbse_sing = helper.sing_excitation_spin(hbse, n_occ_spatial, n_vir_spatial)
-    hbse_trip = helper.trip_excitation_spin(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_sing = helper.sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_trip = helper.trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
     #hbse_trip2 = trip_excitation_spin(hbse, n_occ_spatial, n_vir_spatial)
     singE, _ = np.linalg.eig(hbse_sing)
     tripE, _ = np.linalg.eig(hbse_trip)

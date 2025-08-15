@@ -84,7 +84,7 @@ def super_matrix_solver(A, B):
     
     
     
-def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
+def get_spinorbs(mo:np.ndarray, n_occ_spatial) -> tuple[np.ndarray,np.ndarray]:
     """Gets the core and virtual spin orbitals from a list of molecular orbitals.
 
     Parameters
@@ -98,9 +98,6 @@ def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[
         Core spinorbitals, virtual spin orbitals
     """
 
-    print(mo.shape)
-    n_occ_spin = n_occ_spatial*2
-    n_vir_spin = n_vir_spatial*2
     # Core and Virtual Orbitals (spatial orbital basis)
     core_spatialorbs = mo[:,:n_occ_spatial]
     #.reshape(-1,n_occ_spatial)
@@ -213,7 +210,7 @@ def build_double_ints(core_spinorbs:np.ndarray,
 
     return oovv,ooov,vovv,ovvo,ovov
 
-def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int, int]:
+def bccd_t2_amps(mycc,myhf) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int, int]:
     """ Calculates the bccd amplitudes as well as returing the molecular orbitals and orbital energies.
 
     Parameters
@@ -226,8 +223,8 @@ def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int,
     tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]
         molecular orbitals, t2 amplitudes, core orbital energies, virtual orbital energies.
     """
-    myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
+    # myhf = mol.HF.run() 
+    # mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
 
     #print(mycc.e_tot)
     mo = mycc.mo_coeff
@@ -253,14 +250,13 @@ def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int,
     core_e = np.array(list(myhf.mo_energy[:1]) + list(myhf.mo_energy[:1]))
     vir_e = np.array(list(myhf.mo_energy[1:]) + list(myhf.mo_energy[1:]))
 
-    # print(t2_spin)
     return mo, t2_spin, core_e, vir_e, n_occ, n_vir
 
-def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
+def build_fock_mat_bccd_spatial(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
     # SPATIAL OCCUPIED AND SPATIAL VIRTUAL      
 
-    myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
+    # myhf = mol.HF.run() 
+    # mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
       
     F_ao = myhf.get_fock()    
     C   = myhf.mo_coeff        

@@ -3,7 +3,6 @@ from pyscf import gto, scf, cc
 import BSE_Helper as helper
 import cc_BSE_spatialorb as ccbsespa
 import cc_BSE_spinorb as ccbsespin
-import cc_BSE_RPA as ccbserpa
 
 np.set_printoptions(precision=10, suppress=True, linewidth=100000)
 eV2au = 0.0367493
@@ -83,10 +82,10 @@ print('Finished CC BSE calculation in spin basis.')
 #print(f'selfener_occ_spin:{selfener_occ_spin}')
 #print(f'selfener_vir_spin:{selfener_vir_spin}')
 
-helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "occ self-energy")
-helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "vir self-energy")
-helper.count_matches(fock_occ_spa,  fock_occ_spin, "occ fockener")
-helper.count_matches(fock_vir_spa,  fock_vir_spin, "vir fockener")
+# helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "occ self-energy")
+# helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "vir self-energy")
+# helper.count_matches(fock_occ_spa,  fock_occ_spin, "occ fockener")
+# helper.count_matches(fock_vir_spa,  fock_vir_spin, "vir fockener")
 
 print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
 print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
@@ -98,10 +97,9 @@ print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
 #print(se_occ_spin)
 #print(se_vir_spin)
 
-helper.count_matches(se_occ_spa,  se_occ_spin, "occ self-energy+fockener")
-helper.count_matches(se_vir_spa,  se_vir_spin, "vir self-energy+fockener")
-helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
-
+# helper.count_matches(se_occ_spa,  se_occ_spin, "occ self-energy+fockener")
+# helper.count_matches(se_vir_spa,  se_vir_spin, "vir self-energy+fockener")
+# helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
 
 #print('Starting standard RPA calculation.')
