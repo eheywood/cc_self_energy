@@ -5,6 +5,7 @@ from cc_BSE_spatialorb import CC_BSE_spinfree
 from cc_BSE_spinorb import CC_BSE_spin
 from cc_RPA import RPA
 from spatial_RPA import RPA_spatial
+from GW_BSE import GW_BSE
 
 np.set_printoptions(precision=10, suppress=True, linewidth=100000)
 eV2au = 0.0367493
@@ -65,16 +66,16 @@ n_vir_spin = int(t2.shape[2]*2)
 print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 
 #spin-free
-# print('Starting CC BSE calculation in spin-free basis.')
-# selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
-#   CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-# print('Finished CC BSE calculation in spin-free basis.')
+print('Starting CC BSE calculation in spin-free basis.')
+selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
+  CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+print('Finished CC BSE calculation in spin-free basis.')
 
-# #spin
-# print('Starting CC BSE calculation in spin basis.')
-# selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
-#   CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-# print('Finished CC BSE calculation in spin basis.')
+#spin
+print('Starting CC BSE calculation in spin basis.')
+selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
+  CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+print('Finished CC BSE calculation in spin basis.')
 
 
 #debugging
@@ -104,10 +105,16 @@ print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 # helper.count_matches(se_vir_spa,  se_vir_spin, "vir self-energy+fockener")
 # helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
+# RPA calculations
+print('Starting standard RPA calculation.')
+singEspa, tripEspa, rpa_eig, rpa_X, rpa_Y = RPA(mol,myhf,n_occ_spatial,n_vir_spatial)
+print('Finished standard RPA calculation.')
 
-# print('Starting standard RPA calculation.')
-# singEspa, tripEspa = RPA(mol,myhf,n_occ_spatial,n_vir_spatial)
-# print('Finished standard RPA calculation.')
+# GW-BSE calculations from RPA
+print("starting GW-BSE calculation")
+singEspa = GW_BSE(mol,myhf,rpa_X,rpa_Y,rpa_eig,n_occ_spatial)
+print(np.sort(singEspa)/eV2au)
+print('Finished GW-BSE calculation.')
 
 print('Starting Orca RPA calculation.')
 singEspa = RPA_spatial(mol,myhf,n_occ_spatial)

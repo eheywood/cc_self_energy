@@ -27,20 +27,6 @@ def spinor_one_and_two_e_int(mol):
     spin_eri[n:, n:, :n, :n] = eri
     return np.real(spin_hcore), np.real(spin_eri)
 
-def get_Wijba(oovv, X, Y, rpa_ev):
-    inv_e = 1 / rpa_ev
-    M_ia = np.einsum("ikbc,kcv->ibv", oovv, X, optimize="optimal") +\
-           np.einsum("ikbc,kcv->ibv", oovv, Y, optimize="optimal")
-    return - 2 * np.einsum("ibv,jav,v->ijba", M_ia, M_ia, inv_e, optimize="optimal")
-
-def get_Wiajb(ooov, vovv, X, Y, rpa_ev):
-    inv_e = 1 / rpa_ev
-    M_ij = np.einsum("ikjc,kcv->ijv", ooov, X, optimize="optimal") +\
-           np.einsum("ikjc,kcv->ijv", ooov, Y, optimize="optimal")
-    M_ab = np.einsum("akbc,kcv->abv", vovv, X, optimize="optimal") +\
-           np.einsum("akbc,kcv->abv", vovv, Y, optimize="optimal")
-    return - 2 * np.einsum("ijv,abv,v->iajb", M_ij, M_ab, inv_e, optimize="optimal")
-
 def super_matrix_solver(A, B):
     r"""
     Solve RPA like equations

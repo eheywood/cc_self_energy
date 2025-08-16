@@ -6,31 +6,6 @@ from scipy.linalg import block_diag
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
 
-def get_GW_BSE_amps(X_rpa,Y_rpa,eig_rpa,vir_gwe,core_gwe,ooov_anti,vovv_anti,oovv_anti,ovvo_anti,n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
-    
-    # Build W
-
-    #Build the transfer coefficients
-    M_ijm = np.einsum("ikjc,kcm->ijm",ooov_anti,X_rpa+Y_rpa,optimize='optimal')
-    M_abm = np.einsum("akbc,kcm->abm",vovv_anti,X_rpa+Y_rpa,optimize='optimal') 
-    M_iam = np.einsum("ikac,kcm->iam",oovv_anti,X_rpa+Y_rpa,optimize='optimal') 
-    M_jbm = M_iam
-
-    inv_eig = 1/eig_rpa
-    W_iajb_correction = -2*(np.einsum("ijm,abm,m -> iajb",M_ijm,M_abm,inv_eig,optimize='optimal'))
-    W_ijba_correction = -2*(np.einsum("iam,jbm,m -> ijba",M_iam,M_jbm,inv_eig,optimize='optimal'))
-
-    # Using W, find new X and Y
-    gwe_diff = vir_gwe.reshape(-1,1) - core_gwe
-    AW = -np.einsum("iabj->iajb",ovvo_anti,optimize='optimal') - W_iajb_correction
-    AW += np.einsum("ai,ab,ij-> iajb", gwe_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
-    BW = -np.einsum("ijab->iajb",oovv_anti,optimize='optimal') - np.einsum("ijba->iajb",W_ijba_correction,optimize='optimal')
-
-    eigW, XW, YW = helper.super_matrix_solver(AW,BW)
-    print("GWE-BSE Complete")
-
-    return eigW, XW, YW
-
 def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     # construct A and B and use supermatrix solver to get eigenvectors and values
     e_diff = vir_e.reshape(-1,1) - core_e
@@ -60,7 +35,7 @@ def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) ->
 
     return H_rpa, term_1, term_2, term_3
 
-def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
+def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     """Run RPA on a molecule to get the eigenvalues and eigenvectors of the RPA equation.
 
     Parameters
@@ -161,6 +136,6 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray]
     #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV_to_Hartree}\n")
     #     f.write("\n")
 
-    return singE, tripE
+    return singE, tripE, rpa_eig, X_rpa, Y_rpa
 
 
