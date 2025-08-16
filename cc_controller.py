@@ -4,6 +4,7 @@ import BSE_Helper as helper
 from cc_BSE_spatialorb import CC_BSE_spinfree
 from cc_BSE_spinorb import CC_BSE_spin
 from cc_RPA import RPA
+from spatial_RPA import RPA_spatial
 
 np.set_printoptions(precision=10, suppress=True, linewidth=100000)
 eV2au = 0.0367493
@@ -44,10 +45,10 @@ eV2au = 0.0367493
 
 label = 'Be'
 mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
-basis='aug-cc-pVTZ',
-spin=0,
-symmetry=False,
-unit="Bohr")
+            basis='aug-cc-pVTZ',
+            spin=0,
+            symmetry=False,
+            unit="Bohr")
 
 myhf = mol.HF.run() 
 mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
@@ -104,13 +105,14 @@ print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 # helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
 
-print('Starting standard RPA calculation.')
-singEspa, tripEspa = RPA(mol,myhf,n_occ_spatial,n_vir_spatial)
-print('Finished standard RPA calculation.')
+# print('Starting standard RPA calculation.')
+# singEspa, tripEspa = RPA(mol,myhf,n_occ_spatial,n_vir_spatial)
+# print('Finished standard RPA calculation.')
 
-#print('Starting Orca RPA calculation.')
-#singEspa, tripEspa = ccbsespa.RPA_CC_BSE_consistency(mol,mo,myhf,mycc,label,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-#print('Finished Orca RPA calculation.')
+print('Starting Orca RPA calculation.')
+singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
+print(np.sort(singEspa)/eV2au)
+print('Finished Orca RPA calculation.')
 
 
 
