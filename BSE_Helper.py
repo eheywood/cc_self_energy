@@ -89,8 +89,8 @@ def get_spinorbs(mo:np.ndarray, n_occ_spatial) -> tuple[np.ndarray,np.ndarray]:
     #.reshape(-1,n_occ_spatial)
     vir_spatialorbs = mo[:,n_occ_spatial:]
     #.reshape(-1,n_vir_spatial)
-    print(f"core spatial shape: {core_spatialorbs.shape}")
-    print(f"vir spatial shape: {vir_spatialorbs.shape}")
+    #print(f"core spatial shape: {core_spatialorbs.shape}")
+    #print(f"vir spatial shape: {vir_spatialorbs.shape}")
     
     # Convert core and virtual orbitals into spin-orbital form. The first half of the columns will be alpha spin orbs, the
     # next half of the columns will be beta spin orbs
@@ -99,7 +99,7 @@ def get_spinorbs(mo:np.ndarray, n_occ_spatial) -> tuple[np.ndarray,np.ndarray]:
 
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
-    print(f"n_occ = {n_occ}, n_vir = {n_vir}")
+    #print(f"n_occ = {n_occ}, n_vir = {n_vir}")
 
     return core_spinorbs, vir_spinorbs
 
@@ -265,8 +265,8 @@ def bccd_fock_mat(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarra
                 2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
                 np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
     
-    print(fock_vir.shape)
-    print(fock_occ.shape)
+    #print(fock_vir.shape)
+    #print(fock_occ.shape)
     
     if spin:
         # times two for two spin cases.
@@ -285,7 +285,7 @@ def bccd_fock_mat(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarra
 
 # SPIN 
 def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
-    print(hbse.dtype)
+    #print(hbse.dtype)
     hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
     hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
     hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
@@ -311,4 +311,26 @@ def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,n_occ_spatial:,:n_vir_spatial] #iajb->baba
     
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+
+
+def match_prep(x):
+    x = np.asarray(x).ravel()
+    if np.iscomplexobj(x) and np.max(np.abs(x.imag)) < 1e-10:
+        x = x.real
+    return x[np.isfinite(x)]
+
+def count_matches(spa, spin, label, atol=1e-4, rtol=0.0):
+    a = match_prep(spa)
+    b = match_prep(spin)
+    matches = np.any(np.isclose(a[:, None], b[None, :], atol=atol, rtol=rtol), axis=1)
+    print(f"{label}: {int(matches.sum())}/{int(matches.size)} matched (atol={atol}, rtol={rtol})")
+
+
+
+
+
+
+
+
 

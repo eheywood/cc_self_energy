@@ -37,8 +37,8 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govov, t2) ->
 
             # ovvo term
             H_bse[:,:,:,:,i] += - np.einsum("iabj->iajb", ovvo, optimize="optimal") # because we are swapping labels
+
             # contraction term
-            
             term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
             term2 = -np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
             term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
@@ -104,27 +104,10 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     #####################################################
 
     # build gfock
-    #print('1')
-    #print(selfener_occ)
-    #print('2')
-    #print(fock_occ)
-    
     F_ij = selfener_occ + fock_occ
-    #print('3')
-    #print(F_ij)
     F_ij_v,_,_,_,_ = dgeev(F_ij/eV2au)
-    print('\n')
-    print('occ-selfenergy')
-    #print(F_ij_v)
-    
-
     F_ab = selfener_vir + fock_vir 
-    
-
     F_ab_v,_,_,_,_ = dgeev(F_ab/eV2au)
-    print('\n')
-    print('vir-selfenergy')
-    print(F_ab_v)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     nspincase = 4

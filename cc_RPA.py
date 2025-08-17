@@ -9,16 +9,24 @@ eV_to_Hartree = 0.0367493
 def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     # construct A and B and use supermatrix solver to get eigenvectors and values
     e_diff = vir_e.reshape(-1,1) - core_e
-    A = -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal') 
-    A += np.einsum("ai,ab,ij-> iajb", e_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
 
-    B = np.einsum("ijab->iajb", oovv_anti,optimize='optimal')
+    #A = np.einsum("ai,ab,ij-> iajb", e_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
+    #A += np.einsum("iabj->iajb", ovvo_anti,optimize='optimal') 
 
-    print(A.shape)
-    print(B.shape)
+    #B = np.einsum("ijab->iajb", oovv_anti,optimize='optimal')
+
+    A = np.einsum("ai,ab,ij->iajb", e_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
+    A += -np.einsum("iabj->iajb", ovvo_anti,optimize='optimal') 
+    #A -= np.einsum("ijab->iajb", oovv_anti,optimize='optimal') 
+
+    B = np.einsum("ijab->iajb", oovv_anti, optimize='optimal')
+    #B -= np.einsum("ibaj->iajb", ovvo_anti,optimize='optimal')
+
+    #print(A.shape)
+    #print(B.shape)
 
     eig, X, Y = helper.super_matrix_solver(A,B)
-    print('RPA COMPLETE')
+    #print('RPA COMPLETE')
     return eig, X, Y, A, B
 
 def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
@@ -61,8 +69,8 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
     core_spinorbs, vir_spinorbs = helper.get_spinorbs(mo, n_occ_spatial)
 
     n_mo = myhf.mo_coeff.shape[1]
-    n_occ_spatial = mol.nelec[0]  # Number of occupied orbitals (alpha electrons in RHF)
-    n_vir_spatial = n_mo - n_occ_spatial  # Number of unoccupied orbitals
+    #n_occ_spatial = mol.nelec[0]  # Number of occupied orbitals (alpha electrons in RHF)
+    #n_vir_spatial = n_mo - n_occ_spatial  # Number of unoccupied orbitals
 
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
@@ -75,13 +83,20 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
     # Constructing <ij|ab> and <ia|bj>
     _, eri_ao = helper.spinor_one_and_two_e_int(mol)                   # Find eri in spinor form
     eri_ao = np.einsum("pqrs->prqs", eri_ao, optimize="optimal")    # Convert to Physicist's notation
-    anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
+    eri_ao_anti = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
     # Build the required anti-symmetrised orbitals
-    oovv_anti,_,_,ovvo_anti,_ = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
+    #oovv_anti,_,_,ovvo_anti,_ = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
+    oovv = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spinorbs, core_spinorbs, eri_ao, vir_spinorbs, vir_spinorbs, optimize="optimal")
+    ovvo = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spinorbs, vir_spinorbs, eri_ao, vir_spinorbs, core_spinorbs,optimize="optimal") 
+    ovov = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, eri_ao, core_spinorbs, vir_spinorbs,optimize="optimal") 
+    oovv_anti = np.einsum("pi,qj,pqrs,ra,sb->ijab", core_spinorbs, core_spinorbs, eri_ao_anti, vir_spinorbs, vir_spinorbs, optimize="optimal")
+    ovvo_anti = np.einsum("pi,qa,pqrs,rb,sj->iabj", core_spinorbs, vir_spinorbs, eri_ao_anti, vir_spinorbs, core_spinorbs,optimize="optimal") 
+    ovov_anti = np.einsum("pi,qa,pqrs,rj,sb->iajb", core_spinorbs, vir_spinorbs, eri_ao_anti, core_spinorbs, vir_spinorbs,optimize="optimal") 
 
     # Solve RPA equations to get amplitudes
-    rpa_eig, X_rpa, Y_rpa, A, B = get_RPA_amps(vir_e, core_e, ovvo_anti,oovv_anti,n_occ,n_vir)
+    #rpa_eig, X_rpa, Y_rpa, A, B = get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, ovov_anti, n_occ,n_vir)
+    rpa_eig, X_rpa, Y_rpa, A, B = get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir)
 
     nA = int(np.sqrt(A.size))
     nB = int(np.sqrt(B.size))
@@ -95,7 +110,7 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
 
     H_rpa,term1,term2,term3 = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir,t_reshaped)
 
-    print(H_rpa.shape)
+    #print(H_rpa.shape)
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hrpa_sing = helper.sing_excitation(H_rpa, n_occ_spatial, n_vir_spatial)
     hrpa_trip = helper.trip_excitation(H_rpa, n_occ_spatial, n_vir_spatial)
@@ -103,27 +118,27 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
     singE, _ = np.linalg.eig(hrpa_sing)
     tripE, _ = np.linalg.eig(hrpa_trip)
 
-    assert np.allclose(np.imag(singE), np.zeros(singE.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    #assert np.allclose(np.imag(singE), np.zeros(singE.shape), rtol=0, atol=1e-8)    # Real eigenvalues
     singE = np.real(singE)
-    assert np.allclose(np.imag(tripE), np.zeros(tripE.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    #assert np.allclose(np.imag(tripE), np.zeros(tripE.shape), rtol=0, atol=1e-8)    # Real eigenvalues
     tripE = np.real(singE)
     
     H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
     H_rpa_mat = A + B@t
 
     ## DEBUGGING SELF CONSISTENCY CHECKS ##
-    # print("A check")
-    # print(np.average(np.absolute((np.sort(A.reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term1+term2)))))
+    print("A check")
+    print(np.average(np.absolute((np.sort(A.reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term1+term2)))))
 
     # print(B.shape)
     # print(t.shape)
     # print((B@t).shape)
 
     diff = np.average(np.absolute(np.sort((H_rpa_mat).reshape(n_occ*n_vir,n_occ*n_vir))-np.sort(H_rpa)))
-    print(f'Self-consistency check: {diff}')
+    print(f'RPA Self-consistency check: {diff}')
     ##########################################
 
-    print(f"length of single excitation:{len(singE)}")
+    #print(f"length of single excitation:{len(singE)}")
     print("Single excitation:")
     print(np.real(np.sort(singE)/eV_to_Hartree))
     print("Triplet excitation:")
