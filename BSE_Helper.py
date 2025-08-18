@@ -3,7 +3,8 @@ Helper file for auxiliary codes
 """
 
 import numpy as np
-from scipy.linalg import block_diag
+from scipy.linalg import block_diag,schur
+
 
 
 def spinor_one_and_two_e_int(mol):
@@ -45,7 +46,15 @@ def super_matrix_solver(A, B):
     supermat[nA:, nA:] = -np.conj(A)
 
     # Solve the eigenvalue problem
-    e, v = np.linalg.eig(supermat)
+    # e, v = np.linalg.eig(supermat)
+
+    t,z = schur(supermat)
+
+    if np.triu(t).all() == t.all():
+        e = np.diag(t)
+    else:
+        quit("Schur decomposition failed, matrix is not upper triangular")
+    v = z
 
     # In our current formulation, A and B are real matrices.
     # Eigenvalues of the supermatrix come in pairs.
@@ -61,10 +70,10 @@ def super_matrix_solver(A, B):
     X = pos_v[:nA, :]
     Y = pos_v[nA:, :]
 
-    # assert np.allclose(np.imag(X), np.zeros(X.shape), rtol=0, atol=1e-8)    # Real eigenvalues
-    X = np.real(X)
-    # assert np.allclose(np.imag(Y), np.zeros(Y.shape), rtol=0, atol=1e-8)    # Real eigenvalues
-    Y = np.real(Y)
+    # # assert np.allclose(np.imag(X), np.zeros(X.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    # X = np.real(X)
+    # # assert np.allclose(np.imag(Y), np.zeros(Y.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    # Y = np.real(Y)
 
     return pos_e, X, Y
     
