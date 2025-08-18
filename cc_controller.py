@@ -12,12 +12,12 @@ eV2au = 0.0367493
 
 
 ##Define Molecule to calculate amplitudes and mo for
-label = 'H2'
-mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
-          basis='cc-pVDZ',
-          spin=0,
-          symmetry=False,
-          unit="Bohr")
+# label = 'H2'
+# mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
+#           basis='cc-pVDZ',
+#           spin=0,
+#           symmetry=False,
+#           unit="Bohr")
 
 #label = 'CH3CHO'
 #mol = gto.M(
@@ -44,12 +44,12 @@ mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
 #symmetry = False,
 #unit="Bohr")
 
-# label = 'Be'
-# mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
-#             basis='aug-cc-pVTZ',
-#             spin=0,
-#             symmetry=False,
-#             unit="Bohr")
+label = 'Be'
+mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
+            basis='aug-cc-pVTZ',
+            spin=0,
+            symmetry=False,
+            unit="Bohr")
 
 print()
 print(label)
