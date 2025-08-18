@@ -4,23 +4,34 @@ from scipy.linalg.lapack import dgeev
 
 
 def get_selfenergy_spatial(t2,oovv, goovv):
+    # selfener_occ_1 = np.einsum('ikab, jkab -> ij', oovv, t2, optimize="optimal")
+    # selfener_occ_2 = -np.einsum('ikab, jkba -> ij', oovv, t2, optimize="optimal")
+    # selfener_occ_3 = np.einsum('ikab, jkab -> ij', goovv, t2, optimize="optimal")
+    # selfener_occ_4 = np.einsum('ikba, jkab -> ij', goovv, t2, optimize="optimal")
+    # selfener_occ = 0.5*(selfener_occ_1 + selfener_occ_2 + selfener_occ_3 + selfener_occ_4)
+
     selfener_occ_1 = np.einsum('ikab, jkab -> ij', oovv, t2, optimize="optimal")
     selfener_occ_2 = -np.einsum('ikab, jkba -> ij', oovv, t2, optimize="optimal")
     selfener_occ_3 = np.einsum('ikab, jkab -> ij', goovv, t2, optimize="optimal")
-    selfener_occ_4 = np.einsum('ikba, jkab -> ij', goovv, t2, optimize="optimal")
-
+    selfener_occ_4 = np.einsum('ikba, jkba -> ij', goovv, t2, optimize="optimal")
     selfener_occ = 0.5*(selfener_occ_1 + selfener_occ_2 + selfener_occ_3 + selfener_occ_4)
     
-    selfener_vir_1 = np.einsum('ijbc, ijac -> ab', oovv, t2, optimize="optimal")
-    selfener_vir_2 = - np.einsum('ijbc, ijca -> ab', oovv, t2, optimize="optimal")
-    selfener_vir_3 = np.einsum('ijbc, ijac -> ab', goovv, t2, optimize="optimal")
-    selfener_vir_4 = np.einsum('ijcb, ijac -> ab', goovv, t2, optimize="optimal")
+    # selfener_vir_1 = np.einsum('ijbc, ijac -> ab', oovv, t2, optimize="optimal")
+    # selfener_vir_2 = - np.einsum('ijbc, ijca -> ab', oovv, t2, optimize="optimal")
+    # selfener_vir_3 = np.einsum('ijbc, ijac -> ab', goovv, t2, optimize="optimal")
+    # selfener_vir_4 = np.einsum('ijcb, ijca -> ab', goovv, t2, optimize="optimal")
+    # selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
 
-    selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
+    # correct spatial/RHF virtual self-energy terms
+    v1 = np.einsum('ijac, ijbc -> ab', oovv,  t2, optimize=True)  #  ⟨ij||ac⟩ t_ij^{bc}
+    v2 = -np.einsum('ijac, ijcb -> ab', oovv,  t2, optimize=True) # -⟨ij||ac⟩ t_ij^{cb}
+    v3 = np.einsum('ijac, ijbc -> ab', goovv, t2, optimize=True)  #  ⟨ij|ac⟩  t_ij^{bc}
+    v4 = np.einsum('ijca, ijcb -> ab', goovv, t2, optimize=True)  #  ⟨ij|ac⟩  t_ij^{cb}
+    selfener_vir = -0.5*(v1+v2+v3+v4)
     return selfener_occ, selfener_vir
 
 
-def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govov, t2) -> np.ndarray:
+def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovov, govov, t2) -> np.ndarray:
 
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
@@ -36,7 +47,7 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govov, t2) ->
             # 3 = bbbb
 
             # ovvo term
-            H_bse[:,:,:,:,i] += - np.einsum("iabj->iajb", ovvo, optimize="optimal") # because we are swapping labels
+            H_bse[:,:,:,:,i] += ovov
 
             # contraction term
             term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
@@ -83,7 +94,7 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
 
     # Build the required anti-symmetrised two electron integrals 
-    oovv,_,_,ovvo,_ = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,anti_eri_ao)
+    oovv,_,_,_,ovov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,anti_eri_ao)
 
     # Build required two electron integrals
     goovv,_,_,_,govov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,eri_ao)
@@ -111,8 +122,8 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     nspincase = 4
-    hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovvo, govov, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    
+    hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovov, govov, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
+    hbse_0 = hbse[:,:,:,:,1]
     hbse_eig = np.zeros(n_occ_spin*n_vir_spin)
     
     for i in range(nspincase):
@@ -141,4 +152,4 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
         f.write("\n")
         
-    return selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, F_ij_v, F_ab_v, hbse_eig, singE, tripE
+    return hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, F_ij_v, F_ab_v, hbse_eig, singE, tripE

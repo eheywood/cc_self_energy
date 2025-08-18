@@ -72,7 +72,7 @@ print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 print()
 
 #spin-free
-selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
+hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
  CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
 print()
 print('CC-BSE in spin-free basis COMPLETED.')
@@ -116,6 +116,7 @@ print()
 helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
 
+np.savetxt("results_hbse[0]_spatial.txt", hbse_0.reshape(-1))
 
 
 # #RPA calculations
@@ -134,14 +135,14 @@ helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 #print('GW-BSE calculation COMPLETED.')
 # print()
 
-print()
-print('Starting Orca RPA calculation.')
-print()
-singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
-print(np.sort(singEspa)[:5]/eV2au)
-print()
-print('Orca RPA calculation COMPLETED')
-print()
+# print()
+# print('Starting Orca RPA calculation.')
+# print()
+# singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
+# print(np.sort(singEspa)[:5]/eV2au)
+# print()
+# print('Orca RPA calculation COMPLETED')
+# print()
 
 
 
