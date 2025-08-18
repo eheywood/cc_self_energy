@@ -4,30 +4,18 @@ from scipy.linalg.lapack import dgeev
 
 
 def get_selfenergy_spatial(t2,oovv, goovv):
-    # selfener_occ_1 = np.einsum('ikab, jkab -> ij', oovv, t2, optimize="optimal")
-    # selfener_occ_2 = -np.einsum('ikab, jkba -> ij', oovv, t2, optimize="optimal")
-    # selfener_occ_3 = np.einsum('ikab, jkab -> ij', goovv, t2, optimize="optimal")
-    # selfener_occ_4 = np.einsum('ikba, jkab -> ij', goovv, t2, optimize="optimal")
-    # selfener_occ = 0.5*(selfener_occ_1 + selfener_occ_2 + selfener_occ_3 + selfener_occ_4)
-
     selfener_occ_1 = np.einsum('ikab, jkab -> ij', oovv, t2, optimize="optimal")
     selfener_occ_2 = -np.einsum('ikab, jkba -> ij', oovv, t2, optimize="optimal")
     selfener_occ_3 = np.einsum('ikab, jkab -> ij', goovv, t2, optimize="optimal")
-    selfener_occ_4 = np.einsum('ikba, jkba -> ij', goovv, t2, optimize="optimal")
+    selfener_occ_4 = np.einsum('ikba, jkab -> ij', goovv, t2, optimize="optimal")
     selfener_occ = 0.5*(selfener_occ_1 + selfener_occ_2 + selfener_occ_3 + selfener_occ_4)
-    
-    # selfener_vir_1 = np.einsum('ijbc, ijac -> ab', oovv, t2, optimize="optimal")
-    # selfener_vir_2 = - np.einsum('ijbc, ijca -> ab', oovv, t2, optimize="optimal")
-    # selfener_vir_3 = np.einsum('ijbc, ijac -> ab', goovv, t2, optimize="optimal")
-    # selfener_vir_4 = np.einsum('ijcb, ijca -> ab', goovv, t2, optimize="optimal")
-    # selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
 
-    # correct spatial/RHF virtual self-energy terms
-    v1 = np.einsum('ijac, ijbc -> ab', oovv,  t2, optimize=True)  #  ⟨ij||ac⟩ t_ij^{bc}
-    v2 = -np.einsum('ijac, ijcb -> ab', oovv,  t2, optimize=True) # -⟨ij||ac⟩ t_ij^{cb}
-    v3 = np.einsum('ijac, ijbc -> ab', goovv, t2, optimize=True)  #  ⟨ij|ac⟩  t_ij^{bc}
-    v4 = np.einsum('ijca, ijcb -> ab', goovv, t2, optimize=True)  #  ⟨ij|ac⟩  t_ij^{cb}
-    selfener_vir = -0.5*(v1+v2+v3+v4)
+
+    selfener_vir_1 = np.einsum('ijbc, ijac -> ab', oovv, t2, optimize="optimal")
+    selfener_vir_2 = - np.einsum('ijbc, ijca -> ab', oovv, t2, optimize="optimal")
+    selfener_vir_3 = np.einsum('ijbc, ijac -> ab', goovv, t2, optimize="optimal")
+    selfener_vir_4 = np.einsum('ijcb, ijca -> ab', goovv, t2, optimize="optimal")
+    selfener_vir = -0.5*(selfener_vir_1 + selfener_vir_2 + selfener_vir_3 + selfener_vir_4)
     return selfener_occ, selfener_vir
 
 
