@@ -3,7 +3,7 @@ Helper file for auxiliary codes
 """
 
 import numpy as np
-from scipy.linalg import block_diag, schur
+from scipy.linalg import block_diag
 
 
 def spinor_one_and_two_e_int(mol):
@@ -27,20 +27,6 @@ def spinor_one_and_two_e_int(mol):
     spin_eri[n:, n:, :n, :n] = eri
     return np.real(spin_hcore), np.real(spin_eri)
 
-def get_Wijba(oovv, X, Y, rpa_ev):
-    inv_e = 1 / rpa_ev
-    M_ia = np.einsum("ikbc,kcv->ibv", oovv, X, optimize="optimal") +\
-           np.einsum("ikbc,kcv->ibv", oovv, Y, optimize="optimal")
-    return - 2 * np.einsum("ibv,jav,v->ijba", M_ia, M_ia, inv_e, optimize="optimal")
-
-def get_Wiajb(ooov, vovv, X, Y, rpa_ev):
-    inv_e = 1 / rpa_ev
-    M_ij = np.einsum("ikjc,kcv->ijv", ooov, X, optimize="optimal") +\
-           np.einsum("ikjc,kcv->ijv", ooov, Y, optimize="optimal")
-    M_ab = np.einsum("akbc,kcv->abv", vovv, X, optimize="optimal") +\
-           np.einsum("akbc,kcv->abv", vovv, Y, optimize="optimal")
-    return - 2 * np.einsum("ijv,abv,v->iajb", M_ij, M_ab, inv_e, optimize="optimal")
-
 def super_matrix_solver(A, B):
     r"""
     Solve RPA like equations
@@ -48,13 +34,8 @@ def super_matrix_solver(A, B):
     """
     nA = int(np.sqrt(A.size))
     nB = int(np.sqrt(B.size))
-
-    At = A.transpose((2,3,0,1))
-    Bt = B.transpose((2,3,0,1))
     A = A.reshape((nA, nA))
     B = B.reshape((nB, nB))
-    At = At.reshape((nA, nA))
-    Bt = Bt.reshape((nB, nB))
 
     # Construct supermatrix
     supermat = np.zeros((nA+nB, nA+nB))
@@ -69,22 +50,27 @@ def super_matrix_solver(A, B):
     # In our current formulation, A and B are real matrices.
     # Eigenvalues of the supermatrix come in pairs.
     # We take the positive ones (assuming that they mean excitation energies)
-
-    assert np.allclose(np.imag(e), np.zeros(e.shape), rtol=0, atol=1e-5)    # Real eigenvalues
+    assert np.allclose(np.imag(e), np.zeros(e.shape), rtol=0, atol=1e-8)    # Real eigenvalues
     e = np.real(e)
+
     positive_idx = np.where(e > 0)[0]
-    print(e.shape, positive_idx.shape)
     assert len(positive_idx) == len(e) // 2     # Half of the eigenvalues should be taken
 
     pos_e = e[positive_idx]
     pos_v = v[:, positive_idx]
     X = pos_v[:nA, :]
     Y = pos_v[nA:, :]
+
+    # assert np.allclose(np.imag(X), np.zeros(X.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    X = np.real(X)
+    # assert np.allclose(np.imag(Y), np.zeros(Y.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    Y = np.real(Y)
+
     return pos_e, X, Y
     
     
     
-def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
+def get_spinorbs(mo:np.ndarray, n_occ_spatial) -> tuple[np.ndarray,np.ndarray]:
     """Gets the core and virtual spin orbitals from a list of molecular orbitals.
 
     Parameters
@@ -98,16 +84,13 @@ def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[
         Core spinorbitals, virtual spin orbitals
     """
 
-    print(mo.shape)
-    n_occ_spin = n_occ_spatial*2
-    n_vir_spin = n_vir_spatial*2
     # Core and Virtual Orbitals (spatial orbital basis)
     core_spatialorbs = mo[:,:n_occ_spatial]
     #.reshape(-1,n_occ_spatial)
     vir_spatialorbs = mo[:,n_occ_spatial:]
     #.reshape(-1,n_vir_spatial)
-    print(f"core spatial shape: {core_spatialorbs.shape}")
-    print(f"vir spatial shape: {vir_spatialorbs.shape}")
+    #print(f"core spatial shape: {core_spatialorbs.shape}")
+    #print(f"vir spatial shape: {vir_spatialorbs.shape}")
     
     # Convert core and virtual orbitals into spin-orbital form. The first half of the columns will be alpha spin orbs, the
     # next half of the columns will be beta spin orbs
@@ -116,7 +99,7 @@ def get_spinorbs(mo:np.ndarray,t2_shape, n_occ_spatial, n_vir_spatial) -> tuple[
 
     n_occ = core_spinorbs.shape[1]
     n_vir = vir_spinorbs.shape[1]
-    print(f"n_occ = {n_occ}, n_vir = {n_vir}")
+    #print(f"n_occ = {n_occ}, n_vir = {n_vir}")
 
     return core_spinorbs, vir_spinorbs
 
@@ -213,7 +196,7 @@ def build_double_ints(core_spinorbs:np.ndarray,
 
     return oovv,ooov,vovv,ovvo,ovov
 
-def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int, int]:
+def bccd_t2_amps(mycc,myhf) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int, int]:
     """ Calculates the bccd amplitudes as well as returing the molecular orbitals and orbital energies.
 
     Parameters
@@ -226,8 +209,8 @@ def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int,
     tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]
         molecular orbitals, t2 amplitudes, core orbital energies, virtual orbital energies.
     """
-    myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
+    # myhf = mol.HF.run() 
+    # mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
 
     #print(mycc.e_tot)
     mo = mycc.mo_coeff
@@ -253,14 +236,13 @@ def bccd_t2_amps(mol) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray, int,
     core_e = np.array(list(myhf.mo_energy[:1]) + list(myhf.mo_energy[:1]))
     vir_e = np.array(list(myhf.mo_energy[1:]) + list(myhf.mo_energy[1:]))
 
-    # print(t2_spin)
     return mo, t2_spin, core_e, vir_e, n_occ, n_vir
 
-def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
+def bccd_fock_mat(mol, myhf, mycc,n_occ,n_vir,spin:bool=False)-> tuple[np.ndarray,np.ndarray]:
     # SPATIAL OCCUPIED AND SPATIAL VIRTUAL      
 
-    myhf = mol.HF.run() 
-    mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
+    # myhf = mol.HF.run() 
+    # mycc = cc.BCCD(myhf,max_cycle = 200, conv_tol_normu=1e-8).run()
       
     F_ao = myhf.get_fock()    
     C   = myhf.mo_coeff        
@@ -283,8 +265,8 @@ def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndar
                 2 * np.einsum("pi,qk,pqrs,rj,sk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal") -\
                 np.einsum("pi,qk,pqrs,sj,rk->ij", bmo_vir, bmo_occ, eri, bmo_vir, bmo_occ, optimize="optimal")
     
-    print(fock_vir.shape)
-    print(fock_occ.shape)
+    #print(fock_vir.shape)
+    #print(fock_occ.shape)
     
     if spin:
         # times two for two spin cases.
@@ -300,8 +282,10 @@ def build_fock_mat_bccd_spatial(mol,n_occ,n_vir,spin:bool=False)-> tuple[np.ndar
         return fock_occ_spin, fock_vir_spin
     else:
         return fock_occ, fock_vir
-    
+
+# SPIN 
 def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
+    #print(hbse.dtype)
     hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
     hbse_new += hbse[:n_occ_spatial,:n_vir_spatial,:n_occ_spatial,:n_vir_spatial] #iajb->a,a,a,a
     hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,:n_occ_spatial,n_vir_spatial:] #iajb->baab
@@ -327,4 +311,26 @@ def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new += hbse[n_occ_spatial:,:n_vir_spatial,n_occ_spatial:,:n_vir_spatial] #iajb->baba
     
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+
+
+
+def match_prep(x):
+    x = np.asarray(x).ravel()
+    if np.iscomplexobj(x) and np.max(np.abs(x.imag)) < 1e-10:
+        x = x.real
+    return x[np.isfinite(x)]
+
+def count_matches(spa, spin, label, atol=1e-4, rtol=0.0):
+    a = np.sort(match_prep(spa))
+    b = np.sort(match_prep(spin))
+    matches = np.any(np.isclose(a[:, None], b[None, :], atol=atol, rtol=rtol), axis=1)
+    print(f"{label}: {int(matches.sum())}/{int(matches.size)} matched (atol={atol}, rtol={rtol})")
+
+
+
+
+
+
+
+
 
