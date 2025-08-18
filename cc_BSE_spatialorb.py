@@ -38,8 +38,8 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovov, govov, t2) ->
             H_bse[:,:,:,:,i] += ovov
 
             # contraction term
-            term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
-            term2 = -np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
+            term1 = np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
+            term2 = -np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
             term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
             H_bse[:,:,:,:,i] += term1 + term2 + term3
 
@@ -48,7 +48,7 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovov, govov, t2) ->
             # 2 = baab
             
             # govov term
-            H_bse[:,:,:,:,i] += - govov
+            H_bse[:,:,:,:,i] += govov
             # contraction term
             H_bse[:,:,:,:,i] += - np.einsum("ikcb, jkca -> iajb", goovv, t2,optimize="optimal") 
 
@@ -104,13 +104,16 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
     # build gfock
     F_ij = selfener_occ + fock_occ
-    F_ij_v,_,_,_,_ = dgeev(F_ij/eV2au)
+    F_ij_v,_,_,_,_ = dgeev(F_ij)
+    gfock_occ = np.diag(F_ij_v) 
+
     F_ab = selfener_vir + fock_vir 
-    F_ab_v,_,_,_,_ = dgeev(F_ab/eV2au)
+    F_ab_v,_,_,_,_ = dgeev(F_ab) 
+    gfock_vir = np.diag(F_ab_v)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     nspincase = 4
-    hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovov, govov, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
+    hbse = build_bse_spatial(gfock_occ, gfock_vir, n_occ_spatial, n_vir_spatial, goovv, oovv, ovov, govov, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse_0 = hbse[:,:,:,:,1]
     hbse_eig = np.zeros(n_occ_spin*n_vir_spin)
     
@@ -140,4 +143,4 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
         f.write("\n")
         
-    return hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, F_ij_v, F_ab_v, hbse_eig, singE, tripE
+    return hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, singE, tripE

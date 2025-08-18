@@ -31,21 +31,26 @@ def build_gfock(mol,myhf,mycc,t2_spin, oovv, n_occ_spatial,n_vir_spatial) -> tup
 
     fock_occ, fock_vir = helper.bccd_fock_mat(mol,myhf,mycc,n_occ_spatial,n_vir_spatial,spin=True) 
 
-    F_ij = occ_selfeng + fock_occ
-    F_ab = vir_selfeng + fock_vir
+    F_ij = occ_selfeng + fock_occ    #(n_occ x n_occ)
+    F_ab = vir_selfeng + fock_vir    #(n_vir x n_vir)
 
-    return F_ij,F_ab
+    F_ij_v,_,_,_,_ = dgeev(F_ij)
+    diagFij = np.diag(F_ij_v)    
+    F_ab_v,_,_,_,_ = dgeev(F_ab)
+    diagFab = np.diag(F_ab_v)
 
-def build_bse(F_ij:np.ndarray,F_ab,ovov,oovv,t2, n_occ, n_vir) -> np.ndarray:
+    return diagFij,diagFab
+
+def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
+
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir))
-    H_bse = F_abij - F_ijab + ovov+ np.einsum("ikbc, jkca ->ibja",oovv, t2, optimize='optimal')
+    term1 = - np.einsum('iabj->iajb', ovvo, optimize='optimal') # because we are swapping the sign
+    H_bse = F_abij - F_ijab + term1 + np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
     
     return H_bse
-
-
 
 def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
     
@@ -62,7 +67,7 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     anti_eri_ao = eri_ao - np.einsum("prqs->prsq", eri_ao, optimize='optimal')
 
     # Build the required anti-symmetrised orbitals
-    oovv,_,_,_,ovov = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
+    oovv,_,_,ovvo,ovov = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
 
     
     #debugging ###########################################
@@ -76,12 +81,10 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     # n_occ x n_occ, n_vir x n_vir 
     # Extended fock operator (fock + self energy)
     gfock_occ, gfock_vir = build_gfock(mol,myhf,mycc,t2,oovv,n_occ_spatial,n_vir_spatial)
-    
-    F_ij_v,_,_,_,_ = dgeev(gfock_occ/eV2au)
-    F_ab_v,_,_,_,_ = dgeev(gfock_vir/eV2au)
+
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse = build_bse(gfock_occ,gfock_vir,ovov,oovv,t2,n_occ_spin,n_vir_spin)
+    hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2,n_occ_spin,n_vir_spin)
     H = hbse.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin))
     
     val = np.linalg.eigvals(H)
@@ -105,4 +108,4 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
         f.write("\n")
         
-    return selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, F_ij_v, F_ab_v, val, singE, tripE
+    return selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, val, singE, tripE

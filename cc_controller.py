@@ -85,34 +85,50 @@ print()
 print('CC-BSE in spin basis COMPLETED.')
 print()
 
-
-#debugging
-
+##debugging############################################################
+## Correction term check - printing the matrix for Sigma
+# print()
+# print('CORRECTION MATRIX CHECK')
 # print(f'selfener_occ_spa:{selfener_occ_spa}')
 # print(f'selfener_vir_spa:{selfener_vir_spa}')
 # print(f'selfener_occ_spin:{selfener_occ_spin}')
 # print(f'selfener_vir_spin:{selfener_vir_spin}')
-print()
-helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "occ self-energy")
-helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "vir self-energy")
-print()
-helper.count_matches(fock_occ_spa,  fock_occ_spin, "occ fockener")
-helper.count_matches(fock_vir_spa,  fock_vir_spin, "vir fockener")
-print()
+# print()
+
+## Fock matrix check - printing the fock matrix
+# print()
+# print('FOCK MATRIX CHECK')
 # print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
 # print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
+# print(f'fock_occ_spin:{fock_occ_spin}')
+# print(f'fock_vir_spin:{fock_vir_spin}')
+# print()
 
-#print(f'fock_occ_spin:{fock_occ_spin}')
-#print(f'fock_vir_spin:{fock_vir_spin}')
+## Self energy matrix check - printing the self energy matrix
+# print()
+# print('SELF ENERGY MATRIX CHECK')
+# print(f'se_occ_spa:{se_occ_spa}')
+# print(f'se_vir_spa:{se_vir_spa}')
+# print(f'se_occ_spin:{se_occ_spin}')
+# print(f'se_vir_spin:{se_vir_spin}')
+# print()
 
-#print(se_occ_spa)
-#print(se_vir_spa)
-#print(se_occ_spin)
-#print(se_vir_spin)
-
-helper.count_matches(se_occ_spa,  se_occ_spin, "occ self-energy+fockener")
-helper.count_matches(se_vir_spa,  se_vir_spin, "vir self-energy+fockener")
+# Comparing the matrix
 print()
+helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "Corr. occ")
+helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "Corr. vir")
+helper.count_matches(fock_occ_spa,  fock_occ_spin, "Fock  occ")
+helper.count_matches(fock_vir_spa,  fock_vir_spin, "Fock  vir")
+helper.count_matches(se_occ_spa,  se_occ_spin, "SelfE occ")
+helper.count_matches(se_vir_spa,  se_vir_spin, "SelfE vir")
+print()
+##########################################################################
+
+
+np.savetxt("results_hbse_spa.txt", np.sort(hbse_v_spa.reshape(-1)))
+np.savetxt("results_hbse_spin.txt", np.sort(hbse_v_spin.reshape(-1)))
+
+
 helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
 
