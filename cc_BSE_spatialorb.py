@@ -26,50 +26,52 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govvo, t2) ->
 
     nspincase = 4
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
+    term1_sum = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
+    term2_sum = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
     
     for i in range(nspincase):
-        #H_bse[:,:,:,:,i] = F_abij - F_ijab
+        H_bse[:,:,:,:,i] = F_abij - F_ijab
 
         if i == 0 or i == 3:
             # 0 = aaaa
             # 3 = bbbb
 
             # ovvo term
-            H_bse[:,:,:,:,i] += - np.einsum('iabj->iajb', ovvo, optimize='optimal')
+            term1 =  - np.einsum('iabj->iajb', ovvo, optimize='optimal')
 
             # contraction term
-            term1 = np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
-            term2 = -np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
-            term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
-            #H_bse[:,:,:,:,i] += term1 
-            #H_bse[:,:,:,:,i] += term1 + term2 + term3
+            term2 = np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal") \
+                   -np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal") \
+                   - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
 
-        else:
+
+        elif i == 1:
             # 1 = abba
             # 2 = baab
             
             # govov term
-            H_bse[:,:,:,:,i] += np.einsum('iabj->iajb', govvo, optimize='optimal')
+            term1 = - np.einsum('iabj->iajb', ovvo, optimize='optimal')
+            #term1 += np.einsum('iabj->iajb', govvo, optimize='optimal')
             # contraction term
-            #H_bse[:,:,:,:,i] += - np.einsum("ikcb, jkca -> iajb", goovv, t2,optimize="optimal") 
+            term2 = - np.einsum("ikcb, jkca -> iajb", goovv, t2,optimize="optimal") 
+        
 
-    return H_bse
+        H_bse[:,:,:,:,i] += term1 + term2 
+        term1_sum[:,:,:,:,i] += term1
+        term2_sum[:,:,:,:,i] += term2
 
-def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
-    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
-    hbse_new += hbse[:,:,:,:,0] #iajb->a,a,a,a
-    hbse_new += hbse[:,:,:,:,1] #iajb->baab
-    hbse_new += hbse[:,:,:,:,2] #iajb->abba
-    hbse_new += hbse[:,:,:,:,3] #iajb->bbbb
-    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+    return term1_sum, term2_sum, H_bse
 
-def trip_excitation(hbse, n_occ_spatial, n_vir_spatial):
-    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
-    hbse_new += hbse[:,:,:,:,0] #iajb->a,a,a,a
-    hbse_new -= hbse[:,:,:,:,1] #iajb->baab
-    hbse_new -= hbse[:,:,:,:,2] #iajb->abba
-    hbse_new += hbse[:,:,:,:,3] #iajb->bbbb
-    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+def sing_excitation(hbse, n_occ, n_vir):
+    """Build singlet excitation Hamiltonian."""
+    hbse_new = hbse[..., 0] + hbse[..., 1] + hbse[..., 2] + hbse[..., 3]
+    return 0.5 * hbse_new.reshape(n_occ * n_vir, n_occ * n_vir)
+
+
+def trip_excitation(hbse, n_occ, n_vir):
+    """Build triplet excitation Hamiltonian."""
+    hbse_new = hbse[..., 0] - hbse[..., 1] - hbse[..., 2] + hbse[..., 3]
+    return 0.5 * hbse_new.reshape(n_occ * n_vir, n_occ * n_vir)
 
 
 def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin):
@@ -105,30 +107,33 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
     # build gfock
     F_ij = selfener_occ + fock_occ
-    F_ij_v,_,_,_,_ = dgeev(F_ij)
-    gfock_occ = np.diag(F_ij_v) 
-
     F_ab = selfener_vir + fock_vir 
+
+    F_ij_v,_,_,_,_ = dgeev(F_ij)
+    gfock_occ = np.sort(F_ij_v) 
     F_ab_v,_,_,_,_ = dgeev(F_ab) 
-    gfock_vir = np.diag(F_ab_v)
+    gfock_vir = np.sort(F_ab_v)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    nspincase = 4
-    hbse = build_bse_spatial(gfock_occ, gfock_vir, n_occ_spatial, n_vir_spatial, goovv, oovv, ovvo, govvo, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse_0 = hbse[:,:,:,:,1]
-    hbse_eig = []
     
-    for i in range(nspincase):
-        H = hbse[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial)
-        val = np.linalg.eigvals(H)
+    term1_sum, term2_sum, hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovvo, govvo, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
+    hbse_0 = hbse[:,:,:,:,1]
 
-        hbse_eig += list(np.real_if_close(val))
-      
-    hbse_sing = sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
-    hbse_trip = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_eig, term1_diag, term2_diag = [], [], []
+    for i in range(4): 
+        H = hbse[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
+        val = np.linalg.eigvals(H) 
+        hbse_eig += list(np.real_if_close(val)) 
+        H_term1 = term1_sum[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
+        val1 = np.linalg.eigvals(H_term1) 
+        term1_diag += list(np.real_if_close(val1)) 
+        H_term2 = term2_sum[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
+        val2 = np.linalg.eigvals(H_term2) 
+        term2_diag += list(np.real_if_close(val2))
 
-    singE, v = np.linalg.eig(hbse_sing)
-    tripE, v = np.linalg.eig(hbse_trip)
+    # Singlet/Triplet Excitations
+    singE, _ = np.linalg.eig(sing_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
+    tripE, _ = np.linalg.eig(trip_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
 
 #    print(f"length of single excitation:{len(singE)}")
 #    print("Single excitation:")
@@ -144,4 +149,4 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
         f.write("\n")
         
-    return hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, singE, tripE
+    return term1_diag, term2_diag, hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, singE, tripE

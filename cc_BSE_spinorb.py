@@ -35,24 +35,25 @@ def build_gfock(mol,myhf,mycc,t2_spin, oovv, n_occ_spatial,n_vir_spatial) -> tup
     F_ab = vir_selfeng + fock_vir    #(n_vir x n_vir)
 
     F_ij_v,_,_,_,_ = dgeev(F_ij)
-    diagFij = np.diag(F_ij_v)    
+    diagFij = np.sort(F_ij_v)    
     F_ab_v,_,_,_,_ = dgeev(F_ab)
-    diagFab = np.diag(F_ab_v)
+    diagFab = np.sort(F_ab_v)
 
-    return diagFij,diagFab
+    return diagFij,diagFab,F_ij,F_ab
 
 def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
-    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
-    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
+    F_abij = np.einsum('ab,ij->iajb', F_ab, np.identity(n_occ),optimize='optimal')
+    F_ijab = np.einsum('ij,ab->iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir))
-    term1 = - np.einsum('iabj->iajb', ovvo, optimize='optimal') # because we are swapping the sign
-    H_bse = term1 
-    #+ np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
 
-    #H_bse = F_abij - F_ijab + term1 + np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
+    term1 = - np.einsum('iabj->iajb', ovvo, optimize='optimal') # because we are swapping the sign
+
+    term2 = np.einsum("ikbc,jkca->iajb",oovv, t2, optimize='optimal')
+
+    H_bse = F_abij - F_ijab + term1 + term2
     
-    return H_bse
+    return term1, term2, H_bse
 
 def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
     
@@ -70,6 +71,7 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
 
     # Build the required anti-symmetrised orbitals
     oovv,_,_,ovvo,ovov = helper.build_double_ints(core_spinorbs,vir_spinorbs,anti_eri_ao)
+    goovv,_,_,govvo,govov = helper.build_double_ints(core_spinorbs,vir_spinorbs,eri_ao)
 
     
     #debugging ###########################################
@@ -82,16 +84,19 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
 
     # n_occ x n_occ, n_vir x n_vir 
     # Extended fock operator (fock + self energy)
-    gfock_occ, gfock_vir = build_gfock(mol,myhf,mycc,t2,oovv,n_occ_spatial,n_vir_spatial)
+    gfock_occ,gfock_vir,F_ij, F_ab = build_gfock(mol,myhf,mycc,t2,oovv,n_occ_spatial,n_vir_spatial)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2,n_occ_spin,n_vir_spin)
+    term1, term2, hbse = build_bse(F_ij,F_ab,ovvo,oovv,t2,n_occ_spin,n_vir_spin)
     H = hbse.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin))
-    
     val = np.linalg.eigvals(H)
+    term1_diag = np.linalg.eigvals(term1.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin)))
+    term2_diag = np.linalg.eigvals(term2.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin)))
 
-    hbse_sing = helper.sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
-    hbse_trip = helper.trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
+
+
+    hbse_sing = helper.sing_excitation(term1, n_occ_spatial, n_vir_spatial)
+    hbse_trip = helper.trip_excitation(term1, n_occ_spatial, n_vir_spatial)
     #hbse_trip2 = trip_excitation_spin(hbse, n_occ_spatial, n_vir_spatial)
     singE, _ = np.linalg.eig(hbse_sing)
     tripE, _ = np.linalg.eig(hbse_trip)
@@ -109,4 +114,4 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
         f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
         f.write("\n")
         
-    return selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, val, singE, tripE
+    return term1_diag, term2_diag, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, val, singE, tripE

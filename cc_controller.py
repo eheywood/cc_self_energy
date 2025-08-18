@@ -12,12 +12,12 @@ eV2au = 0.0367493
 
 
 ##Define Molecule to calculate amplitudes and mo for
-# label = 'H2'
-# mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
-#           basis='aug-cc-pVTZ',
-#           spin=0,
-#           symmetry=False,
-#           unit="Bohr")
+label = 'H2'
+mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
+          basis='cc-pVDZ',
+          spin=0,
+          symmetry=False,
+          unit="Bohr")
 
 #label = 'CH3CHO'
 #mol = gto.M(
@@ -44,12 +44,12 @@ eV2au = 0.0367493
 #symmetry = False,
 #unit="Bohr")
 
-label = 'Be'
-mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
-            basis='aug-cc-pVTZ',
-            spin=0,
-            symmetry=False,
-            unit="Bohr")
+# label = 'Be'
+# mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
+#             basis='aug-cc-pVTZ',
+#             spin=0,
+#             symmetry=False,
+#             unit="Bohr")
 
 print()
 print(label)
@@ -72,14 +72,14 @@ print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 print()
 
 #spin-free
-hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
+term1_spa, term2_spa, hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
  CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
 print()
 print('CC-BSE in spin-free basis COMPLETED.')
 print()
 
 #spin
-selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
+term1_spin, term2_spin,selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspin, tripEspin = \
   CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
 print()
 print('CC-BSE in spin basis COMPLETED.')
@@ -125,14 +125,23 @@ print()
 ##########################################################################
 
 
-# np.savetxt("results_hbse_spa.txt", np.sort(hbse_v_spa.reshape(-1)))
-# np.savetxt("results_hbse_spin.txt", np.sort(hbse_v_spin.reshape(-1)))
+np.savetxt("results_hbse_spa.txt", np.sort(term1_spa))
+np.savetxt("results_hbse_spin.txt", np.sort(term1_spin))
 
 
+
+helper.count_matches(term1_spa, term1_spin, "<ia||bj>")
+
+#helper.count_matches(singEspa, singEspin, "<ia||bj>")
+#helper.count_matches(tripEspa, tripEspin, "<ia||bj>")
+helper.count_matches(term2_spa, term2_spin, "<ik||bc>t")
 helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
-
-np.savetxt("results_hbse[0]_spatial.txt", hbse_0.reshape(-1))
+# chunk = 1000
+# for start in range(0, n, chunk):
+#     end = min(start + chunk, n)
+#     print(f"chunk {start}:{end}")
+#     helper.count_matches(hbse_v_spa[start:end], hbse_v_spin, "hbse")
 
 
 # #RPA calculations
