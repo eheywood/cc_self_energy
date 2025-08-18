@@ -19,8 +19,14 @@ import BSE_Helper as helper
 def get_GW_BSE_amps(X_rpa,Y_rpa,eig_rpa,ooov_anti,vovv_anti,oovv_anti,ovvo_anti,n_occ,n_vir,t2) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
     # USE RPA eigenvectors to get the GWE amplitudes
 
-    core_gwe, vir_gwe = helper.get_self_energy(t2,oovv_anti)
-    
+    core_selfeng, vir_selfeng = helper.get_self_energy(t2,oovv_anti)
+
+    # core_gwe, _ = np.linalg.eig(core_selfeng)
+    # vir_gwe, _ = np.linalg.eig(vir_selfeng)
+
+    core_gwe = np.diag(core_selfeng)
+    vir_gwe = np.diag(vir_selfeng)
+
     m_len = eig_rpa.shape[0]
     X_rpa = X_rpa.reshape((n_occ,n_vir,m_len))
     Y_rpa = Y_rpa.reshape((n_occ,n_vir,m_len))
@@ -37,7 +43,11 @@ def get_GW_BSE_amps(X_rpa,Y_rpa,eig_rpa,ooov_anti,vovv_anti,oovv_anti,ovvo_anti,
     W_ijba_correction = -2*(np.einsum("iam,jbm,m -> ijba",M_iam,M_jbm,inv_eig,optimize='optimal'))
 
     # Using W, find new X and Y
+
     gwe_diff = vir_gwe.reshape(-1,1) - core_gwe
+    assert np.allclose(np.imag(gwe_diff), np.zeros(gwe_diff.shape), rtol=0, atol=1e-8)    # Real eigenvalues
+    gwe_diff = np.real(gwe_diff)
+
     AW = -np.einsum("iabj->iajb",ovvo_anti,optimize='optimal') - W_iajb_correction
     AW += np.einsum("ai,ab,ij-> iajb", gwe_diff, np.identity(n_vir),np.identity(n_occ),optimize='optimal')
     BW = -np.einsum("ijab->iajb",oovv_anti,optimize='optimal') - np.einsum("ijba->iajb",W_ijba_correction,optimize='optimal')
