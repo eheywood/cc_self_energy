@@ -320,7 +320,7 @@ def match_prep(x):
         x = x.real
     return x[np.isfinite(x)]
 
-def count_matches(spa, spin, label, atol=1e-2, rtol=0.0):
+def count_matches(spa, spin, label, atol=1e-4, rtol=0.0):
     a = np.sort(match_prep(spa))
     b = np.sort(match_prep(spin))
     matches = np.any(np.isclose(a[:, None], b[None, :], atol=atol, rtol=rtol), axis=1)

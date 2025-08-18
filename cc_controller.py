@@ -80,7 +80,7 @@ print()
 
 #spin
 selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
-  CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+  CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
 print()
 print('CC-BSE in spin basis COMPLETED.')
 print()
@@ -125,8 +125,8 @@ print()
 ##########################################################################
 
 
-np.savetxt("results_hbse_spa.txt", np.sort(hbse_v_spa.reshape(-1)))
-np.savetxt("results_hbse_spin.txt", np.sort(hbse_v_spin.reshape(-1)))
+# np.savetxt("results_hbse_spa.txt", np.sort(hbse_v_spa.reshape(-1)))
+# np.savetxt("results_hbse_spin.txt", np.sort(hbse_v_spin.reshape(-1)))
 
 
 helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")

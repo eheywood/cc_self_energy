@@ -45,14 +45,16 @@ def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
-
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir))
     term1 = - np.einsum('iabj->iajb', ovvo, optimize='optimal') # because we are swapping the sign
-    H_bse = F_abij - F_ijab + term1 + np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
+    H_bse = term1 
+    #+ np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
+
+    #H_bse = F_abij - F_ijab + term1 + np.einsum("ikbc, jkca ->iajb",oovv, t2, optimize='optimal')
     
     return H_bse
 
-def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
+def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
     
     # get molecular orbitals and t2 amplitudes
     _, t2, _, _, _, _ = helper.bccd_t2_amps(mycc,myhf)
@@ -81,7 +83,6 @@ def CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial, n_o
     # n_occ x n_occ, n_vir x n_vir 
     # Extended fock operator (fock + self energy)
     gfock_occ, gfock_vir = build_gfock(mol,myhf,mycc,t2,oovv,n_occ_spatial,n_vir_spatial)
-
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hbse = build_bse(gfock_occ,gfock_vir,ovvo,oovv,t2,n_occ_spin,n_vir_spin)
