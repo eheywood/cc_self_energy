@@ -1,5 +1,6 @@
-CC-BSE Consistency between Spin-Free and Spin Basis for Be
-
+***************************************************************
+CC-BSE Consistency between Spin-Free and Spin Basis for Be (eV)
+***************************************************************
 Occupied self-energy: 4/4 matched (atol=0.0001, rtol=0.0)
 Virtual self-energy: 1936/1936 matched (atol=0.0001, rtol=0.0)
 Occupied fock matrix: 4/4 matched (atol=0.0001, rtol=0.0)
@@ -10,11 +11,29 @@ Triplet excitation energies: 0/88 matched (atol=0.0001, rtol=0.0)
 
 Spin Excitation Energy Predictions 
 
-Singlet excitation energies: [6.98563515 5.02630193 4.8222008  4.8222008  4.87925759]
-Triplet excitation energies: [7.35880458 6.55791641 6.55791641 0.45168779 0.5078212 ]
+    Singlet excitation energies: [12.283106 12.283106 12.283106 13.677736 16.18999 ]
+    Triplet excitation energies: [12.291057 12.291057 12.291057 13.818526 17.747489]
 
 Spin-Free Excitation Energy Predictions 
 
-Singlet excitation energies: [11.42843969+0.j 12.72453274+0.j  2.72797787+0.j  4.121636  +0.j
-  9.47570803+0.j]
-Triplet excitation energies: [1.75836245 1.75836245 1.7288861  1.75836245 0.82814926]
+    Singlet excitation energies: [19.934806 19.934806 19.934806 20.961057 22.290506]
+    Triplet excitation energies: [4.294938 4.294938 4.294938 4.304134 4.304134]
+
+***************************************************
+RPA Self-Consistency and GW-BSE Results for Be (eV)
+***************************************************
+RPA Eigenvalues: 299/352 matched (atol=0.0001, rtol=0.0)
+
+Spin-Orbital RPA Excitation Predictions
+
+    Singlet excitation energies: [11.123153 11.123289 11.12346  12.497917 14.400294]
+    Triplet excitation energies: [11.123153 11.123289 11.12346  12.497917 14.400294]
+
+Spin-Free RPA Excitation Predictions 
+
+    Singlet excitation energies: [4.839851 4.839851 4.839851 6.155723 6.761124]
+
+GW-BSE Excitation Predictions 
+
+    GW-BSE Excitation energies: [2.252689 2.253016 2.253019 2.253648 2.255625]
+
