@@ -4,7 +4,7 @@ import numpy as np
 
 from src.cc_BSE_spatialorb import CC_BSE_spinfree
 from src.cc_BSE_spinorb import CC_BSE_spin
-from tests.test_helper import count_matches
+from tests.test_helper import count_matches, write_to_file
 
 hartree_ev = 27.2114
 
@@ -39,6 +39,9 @@ class BSE_results:
     ("Be 0.00000000 0.00000000 0.00000000", 'aug-cc-pVTZ', "Be"),
 ])
 def setup_helper(request):
+    """Fixture to set up the molecule and perform CC-BSE calculations."""
+
+    # Begin calculation and unpack parameters
     geom, basis, label = request.param
     data = Data()
     data.label = label
@@ -56,7 +59,7 @@ def setup_helper(request):
     data.n_occ_spin = int(data.t2.shape[0]*2)
     data.n_vir_spin = int(data.t2.shape[2]*2)
 
-    #spin-free
+    #spin-free calculation
     hbse_0_spin,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = CC_BSE_spinfree(data.mol,
                                         data.mo,
                                         data.myhf,
@@ -84,7 +87,7 @@ def setup_helper(request):
     spat_results.singE = singEspa
     spat_results.tripE = tripEspa
 
-    #spin
+    #spin calculation
     selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singE_spin, tripE_spin = CC_BSE_spin(data.mol,
                                         data.mo,
                                         data.myhf,
@@ -111,29 +114,81 @@ def setup_helper(request):
     spin_results.singE = singE_spin
     spin_results.tripE = tripE_spin 
 
-    return data, spat_results, spin_results
+    # prep results file
+    heading = f"CC-BSE Consistency between Spin-Free and Spin Basis for {data.label}\n"
+    write_to_file(data.label, heading)
+
+    yield data, spat_results, spin_results
+
+    # Cleanup after tests
+
+    # write first 5 excitation energies to file
+    write_to_file(data.label, f"\nSpin Excitation Energy Predictions \n")
+
+    singlet_str_spin = "Singlet excitation energies: " + str(np.sort(spin_results.singE)[:5])
+    triplet_str_spin = "Triplet excitation energies: " + str(np.sort(spin_results.tripE)[:5])
+    write_to_file(data.label, singlet_str_spin)
+    write_to_file(data.label, triplet_str_spin)
+
+    write_to_file(data.label, f"\nSpin-Free Excitation Energy Predictions \n")
+
+    singlet_str_spa = "Singlet excitation energies: " + str(np.sort(spat_results.singE)[:5])
+    triplet_str_spa = "Triplet excitation energies: " + str(np.sort(spat_results.tripE)[:5])
+    write_to_file(data.label, singlet_str_spa)
+    write_to_file(data.label, triplet_str_spa)
+
 
 @pytest.mark.usefixtures("setup_helper")
 class Test_HBSE_consistency:
 
-    def test_HBSE_spin_spat_consistency(self, setup_helper):
-        _, spat_results, spin_results = setup_helper
+    def test_self_energy(self, setup_helper):
+        data, spat_results, spin_results = setup_helper
 
         # Count matches for Hamiltonian
-        singlet_numer, singlet_denom = count_matches(spat_results.singE,  spin_results.singE, "Singlet excitation energies")
-        triplet_numer, triplet_denom = count_matches(spat_results.tripE,  spin_results.tripE, "Triplet excitation energies")
+        occ_numer, occ_denom, occ_str = count_matches(spat_results.selfener_occ,  spin_results.selfener_occ, "Occupied self-energy")
+        vir_numer, vir_denom, vir_str = count_matches(spat_results.selfener_vir,  spin_results.selfener_vir, "Virtual self-energy")
+
+        write_to_file(data.label, occ_str)
+        write_to_file(data.label, vir_str)  
+
+        assert occ_numer == occ_denom, f"Occupied self-energy does not match between spin-free and spin basis. {occ_numer}/{occ_denom} matched."
+        assert vir_numer == vir_denom, f"Virtual self-energy does not match between spin-free and spin basis. {vir_numer}/{vir_denom} matched."
+    
+    def test_fock_energy(self, setup_helper):
+        data, spat_results, spin_results = setup_helper
+
+        # Count matches for Hamiltonian
+        occ_numer, occ_denom, occ_str = count_matches(spat_results.fock_occ,  spin_results.fock_occ, "Occupied fock matrix")
+        vir_numer, vir_denom, vir_str = count_matches(spat_results.fock_vir,  spin_results.fock_vir, "Virtual fock Matrix")
+
+        write_to_file(data.label, occ_str)
+        write_to_file(data.label, vir_str)  
+
+        assert occ_numer == occ_denom, f"Occupied fock matrix does not match between spin-free and spin basis. {occ_numer}/{occ_denom} matched."
+        assert vir_numer == vir_denom, f"Virtual fock matrix does not match between spin-free and spin basis. {vir_numer}/{vir_denom} matched."
+
+    def test_hbse(self, setup_helper):
+        data, spat_results, spin_results = setup_helper
+
+        # Count matches for Hamiltonian
+        hbse_numer, hbse_denom, hbse_str = count_matches(spat_results.hbse_v,  spin_results.hbse_v, "HBSE")
+
+        write_to_file(data.label, hbse_str)
+
+        assert hbse_numer == hbse_denom, f"HBSE does not match between spin-free and spin basis. {hbse_numer}/{hbse_denom} matched."
+
+    def test_exitation_energy(self, setup_helper):
+        data, spat_results, spin_results = setup_helper
+
+        # Count matches for Hamiltonian
+        singlet_numer, singlet_denom, singlet_str = count_matches(spat_results.singE,  spin_results.singE, "Singlet excitation energies")
+        triplet_numer, triplet_denom, triplet_str = count_matches(spat_results.tripE,  spin_results.tripE, "Triplet excitation energies")
+
+        write_to_file(data.label, singlet_str)
+        write_to_file(data.label, triplet_str)
 
         assert singlet_numer == singlet_denom, f"Singlet excitation energies do not match between spin-free and spin basis. {singlet_numer}/{singlet_denom} matched."
         assert triplet_numer == triplet_denom, f"Triplet excitation energies do not match between spin-free and spin basis. {triplet_numer}/{triplet_denom} matched."
     
-    def test_self_energy_consistency(self, setup_helper):
-        _, spat_results, spin_results = setup_helper
-
-        # Count matches for Hamiltonian
-        occ_numer, occ_denom = count_matches(spat_results.selfener_occ,  spin_results.selfener_occ, "Occupied self-energy")
-        vir_numer, vir_denom = count_matches(spat_results.selfener_vir,  spin_results.selfener_vir, "Virtual self-energy")
-
-        assert occ_numer == occ_denom, f"Occupied self-energy does not match between spin-free and spin basis. {occ_numer}/{occ_denom} matched."
-        assert vir_numer == vir_denom, f"Virtual self-energy does not match between spin-free and spin basis. {vir_numer}/{vir_denom} matched."
 
 

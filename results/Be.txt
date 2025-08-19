@@ -1,0 +1,20 @@
+CC-BSE Consistency between Spin-Free and Spin Basis for Be
+
+Occupied self-energy: 4/4 matched (atol=0.0001, rtol=0.0)
+Virtual self-energy: 1936/1936 matched (atol=0.0001, rtol=0.0)
+Occupied fock matrix: 4/4 matched (atol=0.0001, rtol=0.0)
+Virtual fock Matrix: 1936/1936 matched (atol=0.0001, rtol=0.0)
+HBSE: 152/352 matched (atol=0.0001, rtol=0.0)
+Singlet excitation energies: 0/88 matched (atol=0.0001, rtol=0.0)
+Triplet excitation energies: 0/88 matched (atol=0.0001, rtol=0.0)
+
+Spin Excitation Energy Predictions 
+
+Singlet excitation energies: [6.98563515 5.02630193 4.8222008  4.8222008  4.87925759]
+Triplet excitation energies: [7.35880458 6.55791641 6.55791641 0.45168779 0.5078212 ]
+
+Spin-Free Excitation Energy Predictions 
+
+Singlet excitation energies: [11.42843969+0.j 12.72453274+0.j  2.72797787+0.j  4.121636  +0.j
+  9.47570803+0.j]
+Triplet excitation energies: [1.75836245 1.75836245 1.7288861  1.75836245 0.82814926]

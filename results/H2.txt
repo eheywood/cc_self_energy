@@ -1,0 +1,19 @@
+CC-BSE Consistency between Spin-Free and Spin Basis for H2
+
+Occupied self-energy: 1/1 matched (atol=0.0001, rtol=0.0)
+Virtual self-energy: 2025/2025 matched (atol=0.0001, rtol=0.0)
+Occupied fock matrix: 1/1 matched (atol=0.0001, rtol=0.0)
+Virtual fock Matrix: 2025/2025 matched (atol=0.0001, rtol=0.0)
+HBSE: 90/180 matched (atol=0.0001, rtol=0.0)
+Singlet excitation energies: 0/45 matched (atol=0.0001, rtol=0.0)
+Triplet excitation energies: 0/45 matched (atol=0.0001, rtol=0.0)
+
+Spin Excitation Energy Predictions 
+
+Singlet excitation energies: [7.58520452 5.75684343 6.00047057 4.28517883 2.95716452]
+Triplet excitation energies: [7.64521419 5.82464404 4.37686664 3.0572865  6.05907034]
+
+Spin-Free Excitation Energy Predictions 
+
+Singlet excitation energies: [14.04295967 10.51941528  7.5951412   5.10421123 10.94032317]
+Triplet excitation energies: [0.25382476 1.37290477 0.36638448 0.29958115 1.30360826]
