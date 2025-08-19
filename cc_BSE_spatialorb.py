@@ -142,11 +142,11 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 #    print(np.sort(tripE)/eV2au)
     
 
-    with open("results.txt", "a", encoding="utf-8") as f:
-        f.write(f"{label}, spin-free-orb\n")
-        # f.write("Beryllium, spin-free-orb\n")
-        f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV2au}\n")
-        f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
-        f.write("\n")
+    # with open("results.txt", "a", encoding="utf-8") as f:
+    #     f.write(f"{label}, spin-free-orb\n")
+    #     # f.write("Beryllium, spin-free-orb\n")
+    #     f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV2au}\n")
+    #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
+    #     f.write("\n")
         
     return term1_diag, term2_diag, hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, singE, tripE

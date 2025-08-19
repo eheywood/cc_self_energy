@@ -55,6 +55,8 @@ def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
     
     return term1, term2, H_bse
 
+
+
 def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_spin, n_vir_spin):
     
     # get molecular orbitals and t2 amplitudes
@@ -93,13 +95,20 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
     term1_diag = np.linalg.eigvals(term1.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin)))
     term2_diag = np.linalg.eigvals(term2.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin)))
 
+    # hbse_sing = helper.sing_excitation(term1, n_occ_spatial, n_vir_spatial)
+    # hbse_trip = helper.trip_excitation(term1, n_occ_spatial, n_vir_spatial)
+
+    hbse_sing = helper.singlet_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_trip = helper.trip_excitation_another(hbse, n_occ_spatial, n_vir_spatial)
 
 
-    hbse_sing = helper.sing_excitation(term1, n_occ_spatial, n_vir_spatial)
-    hbse_trip = helper.trip_excitation(term1, n_occ_spatial, n_vir_spatial)
+    # print(f'size of hbse_sing: {hbse_sing.shape}')
+    # print(f'size of hbse_trip: {hbse_trip.shape}')
+
     #hbse_trip2 = trip_excitation_spin(hbse, n_occ_spatial, n_vir_spatial)
-    singE, _ = np.linalg.eig(hbse_sing)
-    tripE, _ = np.linalg.eig(hbse_trip)
+    singE,_,_,_,_ = dgeev(hbse_sing.reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial))
+    tripE,_,_,_,_ = dgeev(hbse_trip.reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial))
+
     #tripE2, _ = np.linalg.eig(hbse_trip2)
     #print(f"length of single excitation:{len(singE)}")
     #print("Singlet excitation:")
@@ -107,11 +116,11 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
     #print("Triplet excitation:")
     #print(np.sort(tripE)/eV2au)
 
-    with open("results.txt", "a", encoding="utf-8") as f:
-        f.write(f"{label}, spin-orb\n")
-        #f.write("Beryllium, spin-orb\n")
-        f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV2au}\n")
-        f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
-        f.write("\n")
+    # with open("results.txt", "a", encoding="utf-8") as f:
+    #     f.write(f"{label}, spin-orb\n")
+    #     #f.write("Beryllium, spin-orb\n")
+    #     f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV2au}\n")
+    #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
+    #     f.write("\n")
         
-    return term1_diag, term2_diag, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, val, singE, tripE
+    return hbse_sing, hbse_trip, term1_diag, term2_diag, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, val, singE, tripE
