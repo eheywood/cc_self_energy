@@ -4,7 +4,7 @@ import numpy as np
 
 from src.cc_BSE_spatialorb import CC_BSE_spinfree
 from src.cc_BSE_spinorb import CC_BSE_spin
-from tests.test_helper import count_matches, write_to_file
+from tests.test_helper import count_matches, write_to_file, molecules
 
 hartree_ev = 27.2114
 
@@ -34,10 +34,7 @@ class BSE_results:
     tripE: np.ndarray
     pass
 
-@pytest.fixture(scope="class", params=[
-    ("H 0.00 0.00 0.00; H 0.00 0.00 2.00", 'aug-cc-pVTZ', "H2"),
-    ("Be 0.00000000 0.00000000 0.00000000", 'aug-cc-pVTZ', "Be"),
-])
+@pytest.fixture(scope="class", params=molecules)
 def setup_helper(request):
     """Fixture to set up the molecule and perform CC-BSE calculations."""
 

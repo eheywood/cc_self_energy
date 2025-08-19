@@ -1,5 +1,10 @@
 import numpy as np
 
+molecules = [
+    ("H 0.00 0.00 0.00; H 0.00 0.00 2.00", 'aug-cc-pVTZ', "H2"),
+    ("Be 0.00000000 0.00000000 0.00000000", 'aug-cc-pVTZ', "Be"),
+]
+
 def match_prep(x:np.ndarray) -> np.ndarray:
     x = np.asarray(x).ravel()
     if np.iscomplexobj(x) and np.max(np.abs(x.imag)) < 1e-10:
