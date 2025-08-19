@@ -22,9 +22,6 @@ def get_RPA_amps(vir_e, core_e, ovvo_anti, oovv_anti, n_occ,n_vir) -> tuple[np.n
     B = np.einsum("ijab->iajb", oovv_anti, optimize='optimal')
     #B -= np.einsum("ibaj->iajb", ovvo_anti,optimize='optimal')
 
-    #print(A.shape)
-    #print(B.shape)
-
     eig, X, Y = helper.super_matrix_solver(A,B)
     #print('RPA COMPLETE')
     return eig, X, Y, A, B

@@ -4,8 +4,8 @@ import BSE_Helper as helper
 from cc_BSE_spatialorb import CC_BSE_spinfree
 from cc_BSE_spinorb import CC_BSE_spin
 from cc_RPA import RPA
-from spatial_RPA import RPA_spatial
 from GW_BSE import GW_BSE
+from cc_RPA_all import RPA_spatial66, RPA_ORCA_all, RPAselfConsisCheck
 
 np.set_printoptions(precision=10, suppress=True, linewidth=100000)
 eV2au = 0.0367493
@@ -53,7 +53,7 @@ mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
 
 # label = 'H2O'
 # mol = gto.M(atom="O 0.00000000 0.00000000 -0.13209669; H 0.00000000 1.43152878 0.97970006; H 0.00000000 -1.43152878 0.97970006",
-#             basis='aug-cc-pVTZ',
+#             basis='cc-pVTZ',
 #             spin=0,
 #             symmetry=False,
 #             unit="Bohr")
@@ -78,11 +78,13 @@ print()
 print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 print()
 
-# #spin-free
-# term1_spa, term2_spa, hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
-#  CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-# print('CC-BSE in spin-free basis COMPLETED.')
-# print()
+#spin-free
+print('CC-BSE in spin-free basis; SingEner, TripEner:')
+term1_spa, term2_spa, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
+ CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+print(singEspa[:5]/eV2au)
+print(tripEspa[:5]/eV2au)
+print()
 
 # #spin
 # hbse_sing, hbse_trip, term1_spin, term2_spin,selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspin, tripEspin = \
@@ -153,13 +155,6 @@ print()
 ##########################################################################
 
 
-# chunk = 1000
-# for start in range(0, n, chunk):
-#     end = min(start + chunk, n)
-#     print(f"chunk {start}:{end}")
-#     helper.count_matches(hbse_v_spa[start:end], hbse_v_spin, "hbse")
-
-
 # #RPA calculations
 # print('Standard RPA calculation.')
 # singEspa, tripEspa, rpa_eig, rpa_X, rpa_Y = RPA(mol,myhf,n_occ_spatial,n_vir_spatial)
@@ -169,31 +164,60 @@ print()
 # print('Standard RPA calculation COMPLETED.')
 # print()
 
-# GW-BSE calculations from RPA
-#print("Starting GW-BSE calculation")
-#singEspa = GW_BSE(mol,myhf,rpa_X,rpa_Y,rpa_eig,n_occ_spatial)
-#print(np.sort(singEspa)/eV2au)
-#print('GW-BSE calculation COMPLETED.')
+#GW-BSE calculations from RPA
+# print("Starting GW-BSE calculation")
+# singEspa = GW_BSE(mol,myhf,rpa_X,rpa_Y,rpa_eig,n_occ_spatial)
+# print(np.sort(singEspa)/eV2au)
+# print('GW-BSE calculation COMPLETED.')
 # print()
 
 print()
-print('Starting Orca RPA calculation.')
-print()
-singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
-print(np.sort(singEspa)[:5]/eV2au)
-print()
-print('Orca RPA calculation COMPLETED')
+print('Starting Orca RPA calculation; SingEner:')
+singEORCA, horca, A, B, t2_rpa = RPA_ORCA_all(mol,myhf,n_occ_spatial)
+print(singEORCA[:5]/eV2au)
 print()
 
-# with open("results.txt", "a", encoding="utf-8") as f:
-#     f.write(f"{label}, ORCA-RPA\n")
-#     f.write(f"Singlet exci./eV: {np.sort(np.real(singEspa))[:5] / eV2au}\n")
-    #f.write(f"Triplet exci./eV: {np.sort(np.real(tripEspa))[:5] / eV2au}\n")
+print()
+print('Starting RPA in Chris paper; SingEner, TripEner:')
+singEPaper, tripEPaper, hrpa66 = RPA_spatial66(mol,myhf,n_occ_spatial,A,B,t2_rpa)
+print(singEPaper[:5]/eV2au)
+print(tripEPaper[:5]/eV2au)
+print()
 
-    # f.write(f"{label}, spin-orb\n")
-    # f.write(f"Singlet exci./eV: {np.sort(np.real(singEspin))[:5] / eV2au}\n")
-    # f.write(f"Triplet exci./eV: {np.sort(np.real(tripEspin))[:5] / eV2au}\n")
-    # f.write("\n")
+
+print()
+diff = RPAselfConsisCheck(horca, hrpa66)
+print(f'RPA Self Consistency Check:{diff}')
+
+
+with open("results.txt", "a", encoding="utf-8") as f:
+    f.write(f"{label}\n")
+    
+    f.write('CC-BSE in spin-free basis; SingEner, TripEner:\n')
+    
+    f.write(f"{singEspa[:5]/eV2au}\n")
+    f.write(f"{tripEspa[:5]/eV2au}\n")
+    f.write("\n")
+
+    f.write('Starting Orca RPA calculation; SingEner:\n')
+    singEORCA, horca, A, B, t2_rpa = RPA_ORCA_all(mol,myhf,n_occ_spatial)
+    f.write(f"{singEORCA[:5]/eV2au}\n")
+    f.write("\n")
+
+    f.write('Starting RPA in Chris paper; SingEner, TripEner:\n')
+    singEPaper, tripEPaper, hrpa66 = RPA_spatial66(mol,myhf,n_occ_spatial,A,B,t2_rpa)
+    f.write(f"{singEPaper[:5]/eV2au}\n")
+    f.write(f"{tripEPaper[:5]/eV2au}\n")
+
+    diff = RPAselfConsisCheck(horca, hrpa66)
+    f.write(f"RPA Self-Consistency Check: {diff}")
+    f.write("\n\n")
+
+
+
+
+
+
 
 
 

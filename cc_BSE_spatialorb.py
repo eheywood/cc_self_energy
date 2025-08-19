@@ -62,6 +62,32 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govvo, t2) ->
 
     return term1_sum, term2_sum, H_bse
 
+def build_hbse_singtrip(F_ij, F_ab, nc, nv, t2, govvo, govov, goovv):
+
+    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(nc),optimize='optimal')
+    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(nv),optimize='optimal')
+
+    hbseSing = np.zeros((nc,nv,nc,nv))
+    hbseTrip = np.zeros((nc,nv,nc,nv))
+    
+    fock = F_abij - F_ijab
+
+    iabj = 2*np.einsum('iabj->iajb', govvo, optimize='optimal')
+    iajb = - govov
+
+    ikbc_ikcb = 2*goovv - np.einsum("ikcb->ikbc", goovv, optimize='optimal')
+    term3 = np.einsum("ikbc,jkca->iajb", ikbc_ikcb, t2, optimize='optimal')
+
+    hbseSing = fock + iabj + iajb + term3
+    hbseTrip = fock + iajb - np.einsum("ikcb,jkca->iajb", goovv, t2, optimize='optimal')
+
+    SingEner, v = np.linalg.eig(hbseSing.reshape((nc*nv, nc*nv)))
+    TripEner, v = np.linalg.eig(hbseTrip.reshape((nc*nv, nc*nv)))
+
+    return np.sort(np.real_if_close(SingEner)), np.sort(np.real_if_close(TripEner)) # in eV
+
+
+
 def sing_excitation(hbse, n_occ, n_vir):
     """Build singlet excitation Hamiltonian."""
     hbse_new = hbse[..., 0] + hbse[..., 1] + hbse[..., 2] + hbse[..., 3]
@@ -117,7 +143,9 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     
     term1_sum, term2_sum, hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovvo, govvo, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse_0 = hbse[:,:,:,:,1]
+
+    
+    SingEner, TripEner = build_hbse_singtrip(F_ij, F_ab, n_occ_spatial, n_vir_spatial, t2, govvo, govov, goovv)
 
     hbse_eig, term1_diag, term2_diag = [], [], []
     for i in range(4): 
@@ -131,15 +159,10 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
         val2 = np.linalg.eigvals(H_term2) 
         term2_diag += list(np.real_if_close(val2))
 
-    # Singlet/Triplet Excitations
-    singE, _ = np.linalg.eig(sing_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
-    tripE, _ = np.linalg.eig(trip_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
+    # # Singlet/Triplet Excitations
+    # singE, _ = np.linalg.eig(sing_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
+    # tripE, _ = np.linalg.eig(trip_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
 
-#    print(f"length of single excitation:{len(singE)}")
-#    print("Single excitation:")
-#    print(np.real(np.sort(singE)/eV2au))
-#    print("Triplet excitation:")
-#    print(np.sort(tripE)/eV2au)
     
 
     # with open("results.txt", "a", encoding="utf-8") as f:
@@ -149,4 +172,4 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
     #     f.write("\n")
         
-    return term1_diag, term2_diag, hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, singE, tripE
+    return term1_diag, term2_diag, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, SingEner, TripEner
