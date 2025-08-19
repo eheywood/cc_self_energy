@@ -115,8 +115,8 @@ def setup_helper(request):
     spin_results.tripE = tripE_spin 
 
     # prep results file
-    heading = f"CC-BSE Consistency between Spin-Free and Spin Basis for {data.label}\n"
-    write_to_file(data.label, heading)
+    title = f"CC-BSE Consistency between Spin-Free and Spin Basis for {data.label} (eV)"
+    write_to_file(data.label, title,heading=True)
 
     yield data, spat_results, spin_results
 
@@ -125,18 +125,19 @@ def setup_helper(request):
     # write first 5 excitation energies to file
     write_to_file(data.label, f"\nSpin Excitation Energy Predictions \n")
 
-    singlet_str_spin = "Singlet excitation energies: " + str(np.sort(spin_results.singE)[:5])
-    triplet_str_spin = "Triplet excitation energies: " + str(np.sort(spin_results.tripE)[:5])
+    singlet_str_spin = "    Singlet excitation energies: " + str(np.sort(spin_results.singE)[:5]*hartree_ev)
+    triplet_str_spin = "    Triplet excitation energies: " + str(np.sort(spin_results.tripE)[:5]*hartree_ev)
     write_to_file(data.label, singlet_str_spin)
     write_to_file(data.label, triplet_str_spin)
 
     write_to_file(data.label, f"\nSpin-Free Excitation Energy Predictions \n")
 
-    singlet_str_spa = "Singlet excitation energies: " + str(np.sort(spat_results.singE)[:5])
-    triplet_str_spa = "Triplet excitation energies: " + str(np.sort(spat_results.tripE)[:5])
+    singlet_str_spa = "    Singlet excitation energies: " + str(np.sort(spat_results.singE)[:5]*hartree_ev)
+    triplet_str_spa = "    Triplet excitation energies: " + str(np.sort(spat_results.tripE)[:5]*hartree_ev)
     write_to_file(data.label, singlet_str_spa)
     write_to_file(data.label, triplet_str_spa)
 
+    write_to_file(data.label, "")
 
 @pytest.mark.usefixtures("setup_helper")
 class Test_HBSE_consistency:

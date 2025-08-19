@@ -35,7 +35,7 @@ def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) ->
 
     return H_rpa, term_1, term_2, term_3
 
-def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     """Run RPA on a molecule to get the eigenvalues and eigenvectors of the RPA equation.
 
     Parameters
@@ -118,6 +118,6 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
     diff = np.average(np.absolute(np.sort((H_rpa_mat).reshape(n_occ*n_vir,n_occ*n_vir))-np.sort(H_rpa)))
     print(f'RPA Self-consistency check: {diff}')
 
-    return singE, tripE, rpa_eig, X_rpa, Y_rpa
+    return singE, tripE, rpa_eig, X_rpa, Y_rpa, A, B
 
 
