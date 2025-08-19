@@ -98,7 +98,7 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
     # hbse_sing = helper.sing_excitation(term1, n_occ_spatial, n_vir_spatial)
     # hbse_trip = helper.trip_excitation(term1, n_occ_spatial, n_vir_spatial)
 
-    hbse_sing = helper.singlet_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    hbse_sing = helper.sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
     hbse_trip = helper.trip_excitation_another(hbse, n_occ_spatial, n_vir_spatial)
 
 

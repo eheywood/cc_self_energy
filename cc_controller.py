@@ -78,77 +78,77 @@ print()
 print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 print()
 
-#spin-free
-term1_spa, term2_spa, hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
- CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-print('CC-BSE in spin-free basis COMPLETED.')
-print()
+# #spin-free
+# term1_spa, term2_spa, hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
+#  CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+# print('CC-BSE in spin-free basis COMPLETED.')
+# print()
 
 # #spin
 # hbse_sing, hbse_trip, term1_spin, term2_spin,selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspin, tripEspin = \
-#   CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+#  CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
 # print('CC-BSE in spin basis COMPLETED.')
 # print()
 
-##debugging############################################################
-# Correction term check - printing the matrix for Sigma
-print()
-print('CORRECTION MATRIX CHECK')
-print(f'selfener_occ_spa:{selfener_occ_spa}')
-print(f'selfener_vir_spa:{selfener_vir_spa}')
-print(f'selfener_occ_spin:{selfener_occ_spin}')
-print(f'selfener_vir_spin:{selfener_vir_spin}')
-print()
+# ##debugging############################################################
+# # Correction term check - printing the matrix for Sigma
+# print()
+# print('CORRECTION MATRIX CHECK')
+# print(f'selfener_occ_spa:{selfener_occ_spa}')
+# print(f'selfener_vir_spa:{selfener_vir_spa}')
+# print(f'selfener_occ_spin:{selfener_occ_spin}')
+# print(f'selfener_vir_spin:{selfener_vir_spin}')
+# print()
 
-# Fock matrix check - printing the fock matrix
-print()
-print('FOCK MATRIX CHECK')
-print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
-print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
-print(f'fock_occ_spin:{fock_occ_spin}')
-print(f'fock_vir_spin:{fock_vir_spin}')
-print()
+# # Fock matrix check - printing the fock matrix
+# print()
+# print('FOCK MATRIX CHECK')
+# print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
+# print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
+# print(f'fock_occ_spin:{fock_occ_spin}')
+# print(f'fock_vir_spin:{fock_vir_spin}')
+# print()
 
-# Self energy matrix check - printing the self energy matrix
-print()
-print('SELF ENERGY MATRIX CHECK')
-print(f'se_occ_spa:{se_occ_spa}')
-print(f'se_vir_spa:{se_vir_spa}')
-print(f'se_occ_spin:{se_occ_spin}')
-print(f'se_vir_spin:{se_vir_spin}')
-print()
+# # Self energy matrix check - printing the self energy matrix
+# print()
+# print('SELF ENERGY MATRIX CHECK')
+# print(f'se_occ_spa:{se_occ_spa}')
+# print(f'se_vir_spa:{se_vir_spa}')
+# print(f'se_occ_spin:{se_occ_spin}')
+# print(f'se_vir_spin:{se_vir_spin}')
+# print()
 
-Comparing the matrix
-print()
-helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "Corr. occ")
-helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "Corr. vir")
-helper.count_matches(fock_occ_spa,  fock_occ_spin, "Fock  occ")
-helper.count_matches(fock_vir_spa,  fock_vir_spin, "Fock  vir")
-helper.count_matches(se_occ_spa,  se_occ_spin, "SelfE occ")
-helper.count_matches(se_vir_spa,  se_vir_spin, "SelfE vir")
-print()
-helper.count_matches(term1_spa, term1_spin, "<ia||bj>")
-helper.count_matches(term2_spa, term2_spin, "<ik||bc>t")
-helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
-print()
-helper.count_matches(singEspa, singEspin, "SingEx.")
-helper.count_matches(tripEspa, tripEspin, "TripEx.")
-print()
-print(np.sort(singEspa)[:5]/eV2au)
-print(np.sort(singEspin)[:5]/eV2au)
-print(np.sort(tripEspa)[:5]/eV2au)
-print(np.sort(tripEspin)[:5]/eV2au)
+# ##Comparing the matrix
+# print()
+# helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "Corr. occ")
+# helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "Corr. vir")
+# helper.count_matches(fock_occ_spa,  fock_occ_spin, "Fock  occ")
+# helper.count_matches(fock_vir_spa,  fock_vir_spin, "Fock  vir")
+# helper.count_matches(se_occ_spa,  se_occ_spin, "SelfE occ")
+# helper.count_matches(se_vir_spa,  se_vir_spin, "SelfE vir")
+# print()
+# helper.count_matches(term1_spa, term1_spin, "<ia||bj>")
+# helper.count_matches(term2_spa, term2_spin, "<ik||bc>t")
+# helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
+# print()
+# helper.count_matches(singEspa, singEspin, "SingEx.")
+# helper.count_matches(tripEspa, tripEspin, "TripEx.")
+# print()
+# print(np.sort(singEspa)[:5]/eV2au)
+# print(np.sort(singEspin)[:5]/eV2au)
+# print(np.sort(tripEspa)[:5]/eV2au)
+# print(np.sort(tripEspin)[:5]/eV2au)
 
 
-with open("results.txt", "a", encoding="utf-8") as f:
-    f.write(f"{label}, spin-free-orb\n")
-    f.write(f"Singlet exci./eV: {np.sort(np.real(singEspa))[:5] / eV2au}\n")
-    f.write(f"Triplet exci./eV: {np.sort(np.real(tripEspa))[:5] / eV2au}\n")
+# with open("results.txt", "a", encoding="utf-8") as f:
+#     f.write(f"{label}, spin-free-orb\n")
+#     f.write(f"Singlet exci./eV: {np.sort(np.real(singEspa))[:5] / eV2au}\n")
+#     f.write(f"Triplet exci./eV: {np.sort(np.real(tripEspa))[:5] / eV2au}\n")
 
-    f.write(f"{label}, spin-orb\n")
-    f.write(f"Singlet exci./eV: {np.sort(np.real(singEspin))[:5] / eV2au}\n")
-    f.write(f"Triplet exci./eV: {np.sort(np.real(tripEspin))[:5] / eV2au}\n")
-    f.write("\n")
+#     f.write(f"{label}, spin-orb\n")
+#     f.write(f"Singlet exci./eV: {np.sort(np.real(singEspin))[:5] / eV2au}\n")
+#     f.write(f"Triplet exci./eV: {np.sort(np.real(tripEspin))[:5] / eV2au}\n")
+#     f.write("\n")
         
 ##########################################################################
 
@@ -176,14 +176,14 @@ with open("results.txt", "a", encoding="utf-8") as f:
 #print('GW-BSE calculation COMPLETED.')
 # print()
 
-# print()
-# print('Starting Orca RPA calculation.')
-# print()
-# singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
-# print(np.sort(singEspa)[:5]/eV2au)
-# print()
-# print('Orca RPA calculation COMPLETED')
-# print()
+print()
+print('Starting Orca RPA calculation.')
+print()
+singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
+print(np.sort(singEspa)[:5]/eV2au)
+print()
+print('Orca RPA calculation COMPLETED')
+print()
 
 # with open("results.txt", "a", encoding="utf-8") as f:
 #     f.write(f"{label}, ORCA-RPA\n")

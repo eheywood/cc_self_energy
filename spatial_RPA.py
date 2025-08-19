@@ -1,6 +1,7 @@
+
 import numpy as np
 from pyscf import gto
-from BSE_Helper import super_matrix_solver
+import BSE_Helper as helper
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
@@ -37,6 +38,26 @@ def RPA_spatial(mol,myhf,n_occ) -> np.ndarray:
   B_iajb = 2 * np.einsum("pi,qa,pqrs,rb,sj->iajb",o,v,eri_ao,v,o,optimize="optimal")
   B_iajb += -np.einsum("pi,qb,pqrs,ra,sj->iajb",o,v,eri_ao,v,o,optimize="optimal")
 
+  e_rpa, X, Y = helper.super_matrix_solver(A_iajb, B_iajb)
+  t2 = Y@np.linalg.inv(X)
+  t2 = t2.reshape(nc,nv,nc,nv)
+  t2 = t2.transpose(0,2,1,3)
+
+  oovv,_,_,ovvo,ovov = helper.build_double_ints(o,v,eri_ao_phys)
+  
+  new_ham = np.zeros((nc,nv,nc,nv))
+  new_ham += np.einsum("ai,ab,ij->iajb",de,np.identity(nv),np.identity(nc),optimize="optimal")
+
+  new_ham += 2*np.einsum("iabj->iajb", ovvo, optimize='optimal')
+  new_ham += - ovov
+
+  intermediate = 2*oovv - np.einsum("ikcb->ikbc", oovv, optimize='optimal')
+  new_ham += np.einsum("ikbc,jkca->iajb", intermediate, t2, optimize='optimal')
+
+  e, v = np.linalg.eig(new_ham.reshape((nc*nv, nc*nv)))
+  print("Not A and B way eigenvalues:")
+  print(np.sort(e)/eV_to_Hartree)
+
 #   # Solve RPA equation (ORCA Style, phycist's notation)
 #   A_iajb = np.einsum("ai,ab,ij->iajb",de,np.identity(nv),np.identity(nc),optimize="optimal")
 #   A_iajb += 2*np.einsum("pi,qj,pqrs,ra,sb->iajb",o,o,eri_ao_phys,v,v,optimize="optimal")
@@ -50,8 +71,10 @@ def RPA_spatial(mol,myhf,n_occ) -> np.ndarray:
   # B_iajb = 2*np.einsum("pi,qb,pqrs,ra,sj->iajb",o,v,eri_ao_anti_chem,v,o,optimize="optimal")  #ibaj
  
 
-  e_rpa, _, _ = super_matrix_solver(A_iajb, B_iajb)
-  #print(np.sort(e_rpa)/eV_to_Hartree)
+
+
+  print("A and B way eigenvalues:")
+  print(np.sort(e_rpa)/eV_to_Hartree)
 
 
   return np.sort(e_rpa)
