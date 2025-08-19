@@ -1,6 +1,6 @@
 import numpy as np
 from pyscf import gto
-from BSE_Helper import super_matrix_solver
+from src.BSE_Helper import super_matrix_solver
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493

@@ -321,8 +321,7 @@ def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
 
 
-
-def match_prep(x):
+def match_prep(x:np.ndarray) -> np.ndarray:
     x = np.asarray(x).ravel()
     if np.iscomplexobj(x) and np.max(np.abs(x.imag)) < 1e-10:
         x = x.real
@@ -333,7 +332,6 @@ def count_matches(spa, spin, label, atol=1e-4, rtol=0.0):
     b = np.sort(match_prep(spin))
     matches = np.any(np.isclose(a[:, None], b[None, :], atol=atol, rtol=rtol), axis=1)
     print(f"{label}: {int(matches.sum())}/{int(matches.size)} matched (atol={atol}, rtol={rtol})")
-
 
 
 

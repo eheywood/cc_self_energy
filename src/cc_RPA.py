@@ -1,6 +1,6 @@
 import numpy as np
 from pyscf import gto
-import BSE_Helper as helper
+import src.BSE_Helper as helper
 from scipy.linalg import block_diag
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
