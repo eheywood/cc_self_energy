@@ -3,7 +3,6 @@ from pyscf import gto, scf, cc
 import src.BSE_Helper as helper
 from scipy.linalg.lapack import dgeev 
 
-
 def get_self_energy(t2_spin:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
     """Calculates the self energy using t2 CC amplitudes. Eq 49 and 50 in the Paper.
 

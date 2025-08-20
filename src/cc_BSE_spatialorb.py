@@ -163,8 +163,6 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     # singE, _ = np.linalg.eig(sing_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
     # tripE, _ = np.linalg.eig(trip_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
 
-    
-
     # with open("results.txt", "a", encoding="utf-8") as f:
     #     f.write(f"{label}, spin-free-orb\n")
     #     # f.write("Beryllium, spin-free-orb\n")
