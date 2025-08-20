@@ -1,6 +1,6 @@
 import numpy as np
 from pyscf import gto
-import BSE_Helper as helper
+import src.BSE_Helper as helper
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493

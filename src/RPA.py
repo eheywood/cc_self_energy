@@ -1,6 +1,9 @@
+""" Random Phase Approximation (RPA) implementation in a spin-orbital basis according to
+    the equations in the Coveny and Tew paper.
+"""
 import numpy as np
 from pyscf import gto
-import BSE_Helper as helper
+import src.BSE_Helper as helper
 from scipy.linalg import block_diag
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
@@ -32,7 +35,7 @@ def build_RPA_hamiltonian(vir_e, core_e, ovvo_anti, oovv_anti,n_occ,n_vir,t2) ->
 
     return H_rpa, term_1, term_2, term_3
 
-def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     """Run RPA on a molecule to get the eigenvalues and eigenvectors of the RPA equation.
 
     Parameters
@@ -84,7 +87,7 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
     t_reshaped = t.reshape((n_occ,n_vir,n_occ,n_vir))
     t_reshaped = np.einsum("iajb->ijab",t_reshaped,optimize='optimal')
 
-    H_rpa,term1,term2,term3 = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir,t_reshaped)
+    H_rpa,_,_,_ = build_RPA_hamiltonian(vir_e,core_e,ovvo_anti,oovv_anti,n_occ,n_vir,t_reshaped)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     hrpa_sing = helper.sing_excitation(H_rpa, n_occ_spatial, n_vir_spatial)
@@ -98,23 +101,23 @@ def RPA(mol, myhf, n_occ_spatial, n_vir_spatial) -> tuple[np.ndarray,np.ndarray,
     #assert np.allclose(np.imag(tripE), np.zeros(tripE.shape), rtol=0, atol=1e-8)    # Real eigenvalues
     tripE = np.real(singE)
     
-    H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
-    H_rpa_mat = A + B@t
+    # H_rpa = H_rpa.reshape((n_occ*n_vir, n_occ*n_vir))
+    # H_rpa_mat = A + B@t
 
-    ## DEBUGGING SELF CONSISTENCY CHECKS ##
-    print("A check")
-    print(np.average(np.absolute((np.sort(A.reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term1+term2)))))
+    # ## DEBUGGING SELF CONSISTENCY CHECKS ##
+    # print("A check")
+    # print(np.average(np.absolute((np.sort(A.reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term1+term2)))))
 
-    print("B check")
-    print(np.average(np.absolute((np.sort((B@t).reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term3)))))
+    # print("B check")
+    # print(np.average(np.absolute((np.sort((B@t).reshape(n_occ,n_vir,n_occ,n_vir))-np.sort(term3)))))
 
-    # print(B.shape)
-    # print(t.shape)
-    # print((B@t).shape)
+    # # print(B.shape)
+    # # print(t.shape)
+    # # print((B@t).shape)
 
-    diff = np.average(np.absolute(np.sort((H_rpa_mat).reshape(n_occ*n_vir,n_occ*n_vir))-np.sort(H_rpa)))
-    print(f'RPA Self-consistency check: {diff}')
+    # diff = np.average(np.absolute(np.sort((H_rpa_mat).reshape(n_occ*n_vir,n_occ*n_vir))-np.sort(H_rpa)))
+    # print(f'RPA Self-consistency check: {diff}')
 
-    return singE, tripE, rpa_eig, X_rpa, Y_rpa
+    return singE, tripE, rpa_eig, X_rpa, Y_rpa, A, B
 
 

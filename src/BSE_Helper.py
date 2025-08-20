@@ -6,7 +6,6 @@ import numpy as np
 from scipy.linalg import block_diag,schur
 
 
-
 def spinor_one_and_two_e_int(mol):
     r"""
     Produce one- and two- electron integrals in the spinor basis
@@ -329,9 +328,7 @@ def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
 
 
-
-
-def match_prep(x):
+def match_prep(x:np.ndarray) -> np.ndarray:
     x = np.asarray(x).ravel()
     if np.iscomplexobj(x) and np.max(np.abs(x.imag)) < 1e-10:
         x = x.real
@@ -344,7 +341,16 @@ def count_matches(spa, spin, label, atol=1e-4, rtol=0.0):
     print(f"{label}: {int(matches.sum())}/{int(matches.size)} matched (atol={atol}, rtol={rtol})")
 
 
-
+def diagonalise(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Diagonalise a matrix and return eigenvalues and eigenvectors."""
+    e,v = schur(matrix)
+    if not np.allclose(np.triu(e), e, atol=1e-8):
+        raise ValueError("Schur decomposition failed, matrix is not upper triangular.")
+    # Check if eigenvalues are real
+    if not np.allclose(np.imag(e), 0, atol=1e-8):
+        raise ValueError("Eigenvalues are not real.")
+    e = np.real(e)
+    return e, v
 
 
 

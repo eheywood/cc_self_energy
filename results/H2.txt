@@ -1,0 +1,39 @@
+***************************************************************
+CC-BSE Consistency between Spin-Free and Spin Basis for H2 (eV)
+***************************************************************
+Occupied self-energy: 1/1 matched (atol=0.0001, rtol=0.0)
+Virtual self-energy: 2025/2025 matched (atol=0.0001, rtol=0.0)
+Occupied fock matrix: 1/1 matched (atol=0.0001, rtol=0.0)
+Virtual fock Matrix: 2025/2025 matched (atol=0.0001, rtol=0.0)
+HBSE: 90/180 matched (atol=0.0001, rtol=0.0)
+Singlet excitation energies: 0/45 matched (atol=0.0001, rtol=0.0)
+Triplet excitation energies: 0/45 matched (atol=0.0001, rtol=0.0)
+
+Spin Excitation Energy Predictions 
+
+    Singlet excitation energies: [20.457983 20.98695  25.4034   27.590982 27.590982]
+    Triplet excitation energies: [20.524274 21.219587 27.348554 28.658297 28.658297]
+
+Spin-Free Excitation Energy Predictions 
+
+    Singlet excitation energies: [32.690938 33.198    37.953271 40.727176 40.727176]
+    Triplet excitation energies: [ 6.906927  8.152023  9.969835 11.416177 11.416177]
+
+***************************************************
+RPA Self-Consistency and GW-BSE Results for H2 (eV)
+***************************************************
+RPA Eigenvalues: 112/180 matched (atol=0.0001, rtol=0.0)
+
+Spin-Orbital RPA Excitation Predictions
+
+    Singlet excitation energies: [19.262563 19.795717 23.618455 26.285007 26.285007]
+    Triplet excitation energies: [19.262563 19.795717 23.618455 26.285007 26.285007]
+
+Spin-Free RPA Excitation Predictions 
+
+    Singlet excitation energies: [10.122914 11.096512 12.49192  12.49192  12.996664]
+
+GW-BSE Excitation Predictions 
+
+    GW-BSE Excitation energies: [3.409154 3.410973 3.417284 3.420535 4.042262]
+

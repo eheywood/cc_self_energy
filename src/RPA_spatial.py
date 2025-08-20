@@ -1,12 +1,12 @@
 import numpy as np
 from pyscf import gto
-import BSE_Helper as helper
+import src.BSE_Helper as helper
 
 np.set_printoptions(precision=6, suppress=True, linewidth=100000)
 eV_to_Hartree = 0.0367493
 
 # ORCA RPA calculation
-def RPA_ORCA_all(mol,myhf,n_occ) -> np.ndarray:
+def RPA_ORCA_all(mol,myhf,n_occ):
   '''
   A and B correspond to the equations on ORCA website
   '''
@@ -49,13 +49,13 @@ def RPA_ORCA_all(mol,myhf,n_occ) -> np.ndarray:
   t2_4d = t2_4d.transpose(0,2,1,3)
   t2 = t2_4d.reshape(nc*nv,nc*nv)
 
-  hsing = A + B@t2
+  sing_mat = A + B@t2
 
-  return np.sort(e_rpa), hsing, A, B, t2_4d
+  return np.sort(e_rpa), sing_mat, X,Y, A, B, t2_4d
 
 
 
-def RPA_spatial66(mol,myhf,n_occ,A,B,t2) -> np.ndarray:
+def RPA_spatial66(mol,myhf,n_occ,t2):
   '''
   A and B correspond to the eq. 66
   '''
@@ -102,7 +102,9 @@ def RPA_spatial66(mol,myhf,n_occ,A,B,t2) -> np.ndarray:
   SingEner, v = np.linalg.eig(hsing.reshape((nc*nv, nc*nv)))
   TripEner, v = np.linalg.eig(htrip.reshape((nc*nv, nc*nv)))
 
-  return np.sort(np.real_if_close(SingEner)), np.sort(np.real_if_close(TripEner)), hsing.reshape((nc*nv, nc*nv)) # in eV
+  SingEner = np.sort(np.real(SingEner))
+  TripEner = np.sort(np.real(TripEner))
+  return SingEner,TripEner, hsing.reshape((nc*nv, nc*nv)) # in eV
 
 def RPAselfConsisCheck(horca, hrpa66):
 

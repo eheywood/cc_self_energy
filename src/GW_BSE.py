@@ -1,5 +1,5 @@
 import numpy as np
-import BSE_Helper as helper
+import src.BSE_Helper as helper
 
 # def get_Wijba(oovv, X, Y, rpa_ev):
 #     inv_e = 1 / rpa_ev

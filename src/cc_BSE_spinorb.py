@@ -1,8 +1,7 @@
 import numpy as np
 from pyscf import gto, scf, cc
-import BSE_Helper as helper
+import src.BSE_Helper as helper
 from scipy.linalg.lapack import dgeev 
-
 
 def get_self_energy(t2_spin:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.ndarray]:
     """Calculates the self energy using t2 CC amplitudes. Eq 49 and 50 in the Paper.
@@ -26,7 +25,7 @@ def get_self_energy(t2_spin:np.ndarray, oovv:np.ndarray) -> tuple[np.ndarray,np.
     return occ_selfeng, vir_selfeng
 
 
-def build_gfock(mol,myhf,mycc,t2_spin, oovv, n_occ_spatial,n_vir_spatial) -> tuple[np.ndarray,np.ndarray]:
+def build_gfock(mol,myhf,mycc,t2_spin, oovv, n_occ_spatial,n_vir_spatial):
     occ_selfeng, vir_selfeng = get_self_energy(t2_spin,oovv) # n_occ x n_occ, n_vir x n_vir
 
     fock_occ, fock_vir = helper.bccd_fock_mat(mol,myhf,mycc,n_occ_spatial,n_vir_spatial,spin=True) 
@@ -41,7 +40,7 @@ def build_gfock(mol,myhf,mycc,t2_spin, oovv, n_occ_spatial,n_vir_spatial) -> tup
 
     return diagFij,diagFab,F_ij,F_ab
 
-def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir) -> np.ndarray:
+def build_bse(F_ij:np.ndarray,F_ab,ovvo,oovv,t2, n_occ, n_vir):
     F_abij = np.einsum('ab,ij->iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij,ab->iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
@@ -91,7 +90,7 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
     term1, term2, hbse = build_bse(F_ij,F_ab,ovvo,oovv,t2,n_occ_spin,n_vir_spin)
     H = hbse.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin))
-    val = np.linalg.eigvals(H)
+    eig = np.linalg.eigvals(H)
     term1_diag = np.linalg.eigvals(term1.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin)))
     term2_diag = np.linalg.eigvals(term2.reshape((n_occ_spin*n_vir_spin,n_occ_spin*n_vir_spin)))
 
@@ -123,4 +122,4 @@ def CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial, n_occ_
     #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
     #     f.write("\n")
         
-    return hbse_sing, hbse_trip, term1_diag, term2_diag, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, val, singE, tripE
+    return hbse_sing, hbse_trip, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, gfock_occ, gfock_vir, eig, singE, tripE
