@@ -3,10 +3,10 @@ from pyscf import gto,cc
 import numpy as np
 from scipy.linalg import schur
 
-from src.cc_RPA import RPA
-from src.spatial_RPA import RPA_spatial
+from src.RPA import RPA
+from src.RPA_spatial import RPA_ORCA_all, RPA_spatial66
 from src.GW_BSE import GW_BSE
-from tests.test_helper import count_matches, write_to_file,molecules
+from tests.test_helper import count_matches, write_to_file, molecules
 
 hartree_ev = 27.2114
 
@@ -26,6 +26,7 @@ class Data:
 class RPA_Results:
     singE: np.ndarray
     tripE: np.ndarray
+    ham: np.ndarray
     eig: np.ndarray
     X: np.ndarray
     Y: np.ndarray
@@ -74,14 +75,29 @@ def setup_helper(request):
     # GW_BSE CALCULATION
     gwbse_sing, _ , _ = GW_BSE(data.mol,data.myhf,RPA_results.X,RPA_results.Y,RPA_results.eig,data.n_occ_spatial)
 
-    # SPATIAL RPA CALCULATION
-    rpa_spatial_singlets = RPA_spatial(data.mol,data.myhf,data.n_occ_spatial)
+    # ORCA RPA CALCULATION
+    sing_orca, sing_mat, A_orca, B_orca, X_orca, Y_orca, t2_4d = RPA_ORCA_all(data.mol,data.myhf,data.n_occ_spatial)
+
+    orcaResults = RPA_Results()
+    orcaResults.singE = sing_orca
+    orcaResults.ham = sing_mat
+    orcaResults.X = X_orca
+    orcaResults.Y = Y_orca
+    orcaResults.A = A_orca
+    orcaResults.B = B_orca
   
+    # Spin-Free RPA Calculation (eq.66)
+    singEPaper, tripEPaper, hrpa66 = RPA_spatial66(data.mol,data.myhf,data.n_occ_spatial,t2_4d)
+    paperResults = RPA_Results()
+    paperResults.singE = singEPaper
+    paperResults.tripE = tripEPaper
+    paperResults.ham = hrpa66
+
     # prep results file
     title = f"RPA Self-Consistency and GW-BSE Results for {data.label} (eV)"
     write_to_file(data.label, title,heading=True)
 
-    yield data, RPA_results
+    yield data, RPA_results, orcaResults, paperResults
 
     # Cleanup after tests
 
@@ -93,10 +109,17 @@ def setup_helper(request):
     write_to_file(data.label, singlet_str_spin)
     write_to_file(data.label, triplet_str_spin)
 
-    write_to_file(data.label, f"\nSpin-Free RPA Excitation Predictions \n")
+    write_to_file(data.label, f"\nSpin-Free Orca RPA Excitation Predictions \n")
 
-    singlet_str_spa = "    Singlet excitation energies: " + str(np.sort(rpa_spatial_singlets)[:5]*hartree_ev)
+    singlet_str_orca = "    Singlet excitation energies: " + str(np.sort(orcaResults.singE)[:5]*hartree_ev)
+    write_to_file(data.label, singlet_str_orca)
+
+    write_to_file(data.label, f"\nSpin-Free eq.66 RPA Excitation Predictions \n")
+
+    singlet_str_spa = "    Singlet excitation energies: " + str(np.sort(paperResults.singE)[:5]*hartree_ev)
     write_to_file(data.label, singlet_str_spa)
+    triplet_str_spa = "    Triplet excitation energies: " + str(np.sort(paperResults.tripE)[:5]*hartree_ev)
+    write_to_file(data.label, triplet_str_spa)
 
     write_to_file(data.label, f"\nGW-BSE Excitation Predictions \n")
 
@@ -109,7 +132,7 @@ def setup_helper(request):
 class Test_RPA_n_GW_BSE:
     
     def test_spin_RPA_ham(self, setup_helper):
-        data, RPA_spin_results = setup_helper
+        data, RPA_spin_results, _, _ = setup_helper
 
         t = RPA_spin_results.Y@RPA_spin_results.X.T
 
@@ -123,11 +146,18 @@ class Test_RPA_n_GW_BSE:
             quit("Schur decomposition failed, matrix is not upper triangular")
         v = z
         
-
-        numer, denom, label_str = count_matches(RPA_spin_results.eig,  e, "RPA Eigenvalues")
+        numer, denom, label_str = count_matches(RPA_spin_results.eig,  e, "RPA Spin-orbital Eigenvalues")
         write_to_file(data.label, label_str)
 
-        assert numer == denom, f"RPA Hamiltonian does not match eigenvalues from RPA Matrix calculation. {numer}/{denom} matched."
+        assert numer == denom, f"RPA Hamiltonian does not match eigenvalues from RPA Matrix calculation for {data.label}. {numer}/{denom} matched."
+    
+    def test_orca_ham(self, setup_helper):
+        data, _, orca_results, paperResults = setup_helper
+        
+        numer, denom, label_str = count_matches(orca_results.ham, paperResults.ham, "Orca Spatial RPA and eq.66 RPA Hamiltonian")
+        write_to_file(data.label, label_str)
+
+        assert numer == denom, f"Orca Spatial RPA Hamiltonian and eq.66 RPA Hamiltonian do not match for {data.label}. {numer}/{denom} matched."
         
     
         

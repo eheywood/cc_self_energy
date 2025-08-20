@@ -22,14 +22,13 @@ class Data:
     pass
 
 class BSE_results:
-    hbse_0: np.ndarray
     selfener_occ: np.ndarray
     selfener_vir: np.ndarray
     fock_occ: np.ndarray
     fock_vir: np.ndarray
     se_occ: np.ndarray
     se_vir: np.ndarray
-    hbse_v: np.ndarray
+    eig: np.ndarray
     singE: np.ndarray
     tripE: np.ndarray
     pass
@@ -57,45 +56,43 @@ def setup_helper(request):
     data.n_vir_spin = int(data.t2.shape[2]*2)
 
     #spin-free calculation
-    hbse_0_spin,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = CC_BSE_spinfree(data.mol,
-                                        data.mo,
-                                        data.myhf,
-                                        data.mycc,
-                                        data.t2,
-                                        data.label,
-                                        1/hartree_ev,
-                                        data.n_occ_spatial,
-                                        data.n_vir_spatial,
-                                        data.n_occ_spin,
-                                        data.n_vir_spin)
+    selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, eig_spa, singE_spa, tripE_spa= CC_BSE_spinfree(data.mol,
+                                                                data.mo,
+                                                                data.myhf,
+                                                                data.mycc,
+                                                                data.t2,
+                                                                data.label,
+                                                                1/hartree_ev,
+                                                                data.n_occ_spatial,
+                                                                data.n_vir_spatial,
+                                                                data.n_occ_spin,
+                                                                data.n_vir_spin)
     print()
     print('CC-BSE in spin-free basis COMPLETED.')
     print()
 
     spat_results = BSE_results()
-    spat_results.hbse_0 = hbse_0_spin
     spat_results.selfener_occ = selfener_occ_spa
     spat_results.selfener_vir = selfener_vir_spa
     spat_results.fock_occ = fock_occ_spa
     spat_results.fock_vir = fock_vir_spa
     spat_results.se_occ = se_occ_spa
     spat_results.se_vir = se_vir_spa
-    spat_results.hbse_v = hbse_v_spa
-    spat_results.singE = singEspa
-    spat_results.tripE = tripEspa
+    spat_results.eig = np.array(eig_spa)
+    spat_results.singE = singE_spa
+    spat_results.tripE = tripE_spa
 
     #spin calculation
-    selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singE_spin, tripE_spin = CC_BSE_spin(data.mol,
-                                        data.mo,
-                                        data.myhf,
-                                        data.mycc,
-                                        data.t2,
-                                        data.label,
-                                        1/hartree_ev,
-                                        data.n_occ_spatial,
-                                        data.n_vir_spatial,
-                                        data.n_occ_spin,
-                                        data.n_vir_spin)
+    hbse_sing, hbse_trip, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, eig_spin, singE_spin, tripE_spin = CC_BSE_spin(data.mol,
+                                                            data.mo,
+                                                            data.myhf,
+                                                            data.mycc,
+                                                            data.label,
+                                                            1/hartree_ev,
+                                                            data.n_occ_spatial,
+                                                            data.n_vir_spatial,
+                                                            data.n_occ_spin,
+                                                            data.n_vir_spin)
     print()
     print('CC-BSE in spin basis COMPLETED.')
     print()
@@ -107,9 +104,9 @@ def setup_helper(request):
     spin_results.fock_vir = fock_vir_spin
     spin_results.se_occ = se_occ_spin
     spin_results.se_vir = se_vir_spin
-    spin_results.hbse_v = hbse_v_spin
     spin_results.singE = singE_spin
     spin_results.tripE = tripE_spin 
+    spin_results.eig = np.array(eig_spin)
 
     # prep results file
     title = f"CC-BSE Consistency between Spin-Free and Spin Basis for {data.label} (eV)"
@@ -149,8 +146,8 @@ class Test_HBSE_consistency:
         write_to_file(data.label, occ_str)
         write_to_file(data.label, vir_str)  
 
-        assert occ_numer == occ_denom, f"Occupied self-energy does not match between spin-free and spin basis. {occ_numer}/{occ_denom} matched."
-        assert vir_numer == vir_denom, f"Virtual self-energy does not match between spin-free and spin basis. {vir_numer}/{vir_denom} matched."
+        assert occ_numer == occ_denom, f"Occupied self-energy does not match between spin-free and spin basis for {data.label}. {occ_numer}/{occ_denom} matched."
+        assert vir_numer == vir_denom, f"Virtual self-energy does not match between spin-free and spin basis for {data.label}. {vir_numer}/{vir_denom} matched."
     
     def test_fock_energy(self, setup_helper):
         data, spat_results, spin_results = setup_helper
@@ -162,18 +159,36 @@ class Test_HBSE_consistency:
         write_to_file(data.label, occ_str)
         write_to_file(data.label, vir_str)  
 
-        assert occ_numer == occ_denom, f"Occupied fock matrix does not match between spin-free and spin basis. {occ_numer}/{occ_denom} matched."
-        assert vir_numer == vir_denom, f"Virtual fock matrix does not match between spin-free and spin basis. {vir_numer}/{vir_denom} matched."
+        assert occ_numer == occ_denom, f"Occupied fock matrix does not match between spin-free and spin basis for {data.label}. {occ_numer}/{occ_denom} matched."
+        assert vir_numer == vir_denom, f"Virtual fock matrix does not match between spin-free and spin basis for {data.label}. {vir_numer}/{vir_denom} matched."
+    
 
-    def test_hbse(self, setup_helper):
+    def test_extended_fock(self, setup_helper):
         data, spat_results, spin_results = setup_helper
 
         # Count matches for Hamiltonian
-        hbse_numer, hbse_denom, hbse_str = count_matches(spat_results.hbse_v,  spin_results.hbse_v, "HBSE")
+        occ_numer, occ_denom, occ_str = count_matches(spat_results.se_occ,  spin_results.se_occ, "Occupied Extended Fock Operator matrix")
+        vir_numer, vir_denom, vir_str = count_matches(spat_results.se_vir,  spin_results.se_vir, "Virtual Extended Fock Operator matrix")
 
-        write_to_file(data.label, hbse_str)
+        write_to_file(data.label, occ_str)
+        write_to_file(data.label, vir_str)  
 
-        assert hbse_numer == hbse_denom, f"HBSE does not match between spin-free and spin basis. {hbse_numer}/{hbse_denom} matched."
+        assert occ_numer == occ_denom, f"Extended Fock Operator matrix does not match between spin-free and spin basis for {data.label}. {occ_numer}/{occ_denom} matched."
+        assert vir_numer == vir_denom, f"Virtual Extended Fock Operator matrix does not match between spin-free and spin basis for {data.label}. {vir_numer}/{vir_denom} matched."
+
+
+    # CHECK EIGENVALUES ARE A SUBSET??
+    # def test_hbse(self, setup_helper):
+    #     data, spat_results, spin_results = setup_helper
+
+    #     # Count matches for Hamiltonian
+    #     hbse_numer, hbse_denom, hbse_str = count_matches(spat_results.hbse_v,  spin_results.hbse_v, "HBSE")
+
+    #     write_to_file(data.label, hbse_str)
+
+    #     assert hbse_numer == hbse_denom, f"HBSE does not match between spin-free and spin basis. {hbse_numer}/{hbse_denom} matched."
+
+
 
     def test_exitation_energy(self, setup_helper):
         data, spat_results, spin_results = setup_helper
@@ -185,8 +200,8 @@ class Test_HBSE_consistency:
         write_to_file(data.label, singlet_str)
         write_to_file(data.label, triplet_str)
 
-        assert singlet_numer == singlet_denom, f"Singlet excitation energies do not match between spin-free and spin basis. {singlet_numer}/{singlet_denom} matched."
-        assert triplet_numer == triplet_denom, f"Triplet excitation energies do not match between spin-free and spin basis. {triplet_numer}/{triplet_denom} matched."
+        assert singlet_numer == singlet_denom, f"Singlet excitation energies do not match between spin-free and spin basis for {data.label}. {singlet_numer}/{singlet_denom} matched."
+        assert triplet_numer == triplet_denom, f"Triplet excitation energies do not match between spin-free and spin basis for {data.label}. {triplet_numer}/{triplet_denom} matched."
     
 
 
