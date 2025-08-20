@@ -311,6 +311,13 @@ def trip_excitation(hbse, n_occ_spatial, n_vir_spatial):
     
     return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
 
+def trip_excitation_another(hbse, n_occ_spatial, n_vir_spatial):
+    hbse_new = np.zeros((n_occ_spatial, n_vir_spatial, n_occ_spatial, n_vir_spatial))
+    hbse_new += hbse[:n_occ_spatial, :n_vir_spatial, :n_occ_spatial, :n_vir_spatial]
+    hbse_new -= hbse[n_occ_spatial:, n_vir_spatial:, n_occ_spatial:, n_vir_spatial:]
+
+    return 0.5 * hbse_new.reshape(n_occ_spatial * n_vir_spatial,n_occ_spatial * n_vir_spatial)
+
 def trip_excitation2(hbse, n_occ_spatial, n_vir_spatial):
     hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
     hbse_new += hbse[:n_occ_spatial,n_vir_spatial:,:n_occ_spatial,n_vir_spatial:] #iajb->abab

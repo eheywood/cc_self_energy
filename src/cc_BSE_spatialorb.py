@@ -19,13 +19,15 @@ def get_selfenergy_spatial(t2,oovv, goovv):
     return selfener_occ, selfener_vir
 
 
-def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovov, govov, t2) -> np.ndarray:
+def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govvo, t2) -> np.ndarray:
 
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
 
     nspincase = 4
     H_bse = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
+    term1_sum = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
+    term2_sum = np.zeros((n_occ,n_vir,n_occ,n_vir,nspincase))
     
     for i in range(nspincase):
         H_bse[:,:,:,:,i] = F_abij - F_ijab
@@ -35,40 +37,67 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovov, govov, t2) ->
             # 3 = bbbb
 
             # ovvo term
-            H_bse[:,:,:,:,i] += ovov
+            term1 =  - np.einsum('iabj->iajb', ovvo, optimize='optimal')
 
             # contraction term
-            term1 = np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal")
-            term2 = -np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal")
-            term3 = - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
-            H_bse[:,:,:,:,i] += term1 + term2 + term3
+            term2 = np.einsum("ikbc, jkac -> iajb", oovv,t2,optimize="optimal") \
+                   -np.einsum("ikbc, jkca -> iajb", oovv,t2,optimize="optimal") \
+                   - np.einsum("ikbc, jkac -> iajb", goovv,t2,optimize="optimal")
 
-        else:
+
+        elif i == 1:
             # 1 = abba
             # 2 = baab
             
             # govov term
-            H_bse[:,:,:,:,i] += - govov
+            term1 = - np.einsum('iabj->iajb', ovvo, optimize='optimal')
+            #term1 += np.einsum('iabj->iajb', govvo, optimize='optimal')
             # contraction term
-            H_bse[:,:,:,:,i] += - np.einsum("ikcb, jkca -> iajb", goovv, t2,optimize="optimal") 
+            term2 = - np.einsum("ikcb, jkca -> iajb", goovv, t2,optimize="optimal") 
+        
 
-    return H_bse
+        H_bse[:,:,:,:,i] += term1 + term2 
+        term1_sum[:,:,:,:,i] += term1
+        term2_sum[:,:,:,:,i] += term2
 
-def sing_excitation(hbse, n_occ_spatial, n_vir_spatial):
-    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
-    hbse_new += hbse[:,:,:,:,0] #iajb->a,a,a,a
-    hbse_new += hbse[:,:,:,:,1] #iajb->baab
-    hbse_new += hbse[:,:,:,:,2] #iajb->abba
-    hbse_new += hbse[:,:,:,:,3] #iajb->bbbb
-    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+    return term1_sum, term2_sum, H_bse
 
-def trip_excitation(hbse, n_occ_spatial, n_vir_spatial):
-    hbse_new = np.zeros((n_occ_spatial,n_vir_spatial,n_occ_spatial,n_vir_spatial))
-    hbse_new += hbse[:,:,:,:,0] #iajb->a,a,a,a
-    hbse_new -= hbse[:,:,:,:,1] #iajb->baab
-    hbse_new -= hbse[:,:,:,:,2] #iajb->abba
-    hbse_new += hbse[:,:,:,:,3] #iajb->bbbb
-    return 0.5*hbse_new.reshape(n_occ_spatial*n_vir_spatial,n_occ_spatial*n_vir_spatial)
+def build_hbse_singtrip(F_ij, F_ab, nc, nv, t2, govvo, govov, goovv):
+
+    F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(nc),optimize='optimal')
+    F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(nv),optimize='optimal')
+
+    hbseSing = np.zeros((nc,nv,nc,nv))
+    hbseTrip = np.zeros((nc,nv,nc,nv))
+    
+    fock = F_abij - F_ijab
+
+    iabj = 2*np.einsum('iabj->iajb', govvo, optimize='optimal')
+    iajb = - govov
+
+    ikbc_ikcb = 2*goovv - np.einsum("ikcb->ikbc", goovv, optimize='optimal')
+    term3 = np.einsum("ikbc,jkca->iajb", ikbc_ikcb, t2, optimize='optimal')
+
+    hbseSing = fock + iabj + iajb + term3
+    hbseTrip = fock + iajb - np.einsum("ikcb,jkca->iajb", goovv, t2, optimize='optimal')
+
+    SingEner, v = np.linalg.eig(hbseSing.reshape((nc*nv, nc*nv)))
+    TripEner, v = np.linalg.eig(hbseTrip.reshape((nc*nv, nc*nv)))
+
+    return np.sort(np.real_if_close(SingEner)), np.sort(np.real_if_close(TripEner)) # in eV
+
+
+
+def sing_excitation(hbse, n_occ, n_vir):
+    """Build singlet excitation Hamiltonian."""
+    hbse_new = hbse[..., 0] + hbse[..., 1] + hbse[..., 2] + hbse[..., 3]
+    return 0.5 * hbse_new.reshape(n_occ * n_vir, n_occ * n_vir)
+
+
+def trip_excitation(hbse, n_occ, n_vir):
+    """Build triplet excitation Hamiltonian."""
+    hbse_new = hbse[..., 0] - hbse[..., 1] - hbse[..., 2] + hbse[..., 3]
+    return 0.5 * hbse_new.reshape(n_occ * n_vir, n_occ * n_vir)
 
 
 def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin):
@@ -82,10 +111,10 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
 
     # Build the required anti-symmetrised two electron integrals 
-    oovv,_,_,_,ovov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,anti_eri_ao)
+    oovv,_,_,ovvo,ovov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,anti_eri_ao)
 
     # Build required two electron integrals
-    goovv,_,_,_,govov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,eri_ao)
+    goovv,_,_,govvo,govov = helper.build_double_ints(core_spatialorbs,vir_spatialorbs,eri_ao)
 
     # build self energy
     selfener_occ, selfener_vir = get_selfenergy_spatial(t2,oovv,goovv) # n_occ x n_occ, n_vir x n_vir
@@ -104,40 +133,43 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
 
     # build gfock
     F_ij = selfener_occ + fock_occ
-    F_ij_v,_,_,_,_ = dgeev(F_ij/eV2au)
     F_ab = selfener_vir + fock_vir 
-    F_ab_v,_,_,_,_ = dgeev(F_ab/eV2au)
+
+    F_ij_v,_,_,_,_ = dgeev(F_ij)
+    gfock_occ = np.sort(F_ij_v) 
+    F_ab_v,_,_,_,_ = dgeev(F_ab) 
+    gfock_vir = np.sort(F_ab_v)
 
     # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    nspincase = 4
-    hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovov, govov, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
-    hbse_0 = hbse[:,:,:,:,1]
-    hbse_eig = np.zeros(n_occ_spin*n_vir_spin)
     
-    for i in range(nspincase):
-        H = hbse[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial)
-        val = np.linalg.eigvals(H)
+    term1_sum, term2_sum, hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovvo, govvo, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
 
-        hbse_eig[i*n_occ_spatial*n_vir_spatial:(i+1)*n_occ_spatial*n_vir_spatial] = np.real_if_close(val)
-      
-    hbse_sing = sing_excitation(hbse, n_occ_spatial, n_vir_spatial)
-    hbse_trip = trip_excitation(hbse, n_occ_spatial, n_vir_spatial)
+    
+    SingEner, TripEner = build_hbse_singtrip(F_ij, F_ab, n_occ_spatial, n_vir_spatial, t2, govvo, govov, goovv)
 
-    singE, v = np.linalg.eig(hbse_sing)
-    tripE, v = np.linalg.eig(hbse_trip)
+    hbse_eig, term1_diag, term2_diag = [], [], []
+    for i in range(4): 
+        H = hbse[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
+        val = np.linalg.eigvals(H) 
+        hbse_eig += list(np.real_if_close(val)) 
+        H_term1 = term1_sum[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
+        val1 = np.linalg.eigvals(H_term1) 
+        term1_diag += list(np.real_if_close(val1)) 
+        H_term2 = term2_sum[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
+        val2 = np.linalg.eigvals(H_term2) 
+        term2_diag += list(np.real_if_close(val2))
 
-#    print(f"length of single excitation:{len(singE)}")
-#    print("Single excitation:")
-#    print(np.real(np.sort(singE)/eV2au))
-#    print("Triplet excitation:")
-#    print(np.sort(tripE)/eV2au)
+    # # Singlet/Triplet Excitations
+    # singE, _ = np.linalg.eig(sing_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
+    # tripE, _ = np.linalg.eig(trip_excitation(term1_sum, n_occ_spatial, n_vir_spatial))
+
     
 
-    with open("results.txt", "a", encoding="utf-8") as f:
-        f.write(f"{label}, spin-free-orb\n")
-        # f.write("Beryllium, spin-free-orb\n")
-        f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV2au}\n")
-        f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
-        f.write("\n")
+    # with open("results.txt", "a", encoding="utf-8") as f:
+    #     f.write(f"{label}, spin-free-orb\n")
+    #     # f.write("Beryllium, spin-free-orb\n")
+    #     f.write(f"Singlet exci./eV: {np.sort(np.real(singE))[:10] / eV2au}\n")
+    #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
+    #     f.write("\n")
         
-    return hbse_0, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, F_ij_v, F_ab_v, hbse_eig, singE, tripE
+    return term1_diag, term2_diag, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, SingEner, TripEner

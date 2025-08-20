@@ -1,10 +1,11 @@
 import numpy as np
 from pyscf import gto, scf, cc
-# from src.cc_BSE_spatialorb import CC_BSE_spinfree
-# from src.cc_BSE_spinorb import CC_BSE_spin
-# from src.cc_RPA import RPA
-from src.spatial_RPA import RPA_spatial
-# from src.GW_BSE import GW_BSE
+
+import src.BSE_Helper as helper
+from src.cc_BSE_spatialorb import CC_BSE_spinfree
+from src.cc_BSE_spinorb import CC_BSE_spin
+from src.cc_RPA_all import RPA_ORCA_all, RPA_spatial66, RPAselfConsisCheck
+from src.GW_BSE import GW_BSE
 
 np.set_printoptions(precision=10, suppress=True, linewidth=100000)
 eV2au = 0.0367493
@@ -13,7 +14,7 @@ eV2au = 0.0367493
 ##Define Molecule to calculate amplitudes and mo for
 # label = 'H2'
 # mol = gto.M(atom="H 0.00 0.00 0.00; H 0.00 0.00 2.00",
-#           basis='aug-cc-pVTZ',
+#           basis='cc-pVDZ',
 #           spin=0,
 #           symmetry=False,
 #           unit="Bohr")
@@ -50,6 +51,13 @@ mol = gto.M(atom="Be 0.00000000 0.00000000 0.00000000",
             symmetry=False,
             unit="Bohr")
 
+# label = 'H2O'
+# mol = gto.M(atom="O 0.00000000 0.00000000 -0.13209669; H 0.00000000 1.43152878 0.97970006; H 0.00000000 -1.43152878 0.97970006",
+#             basis='cc-pVTZ',
+#             spin=0,
+#             symmetry=False,
+#             unit="Bohr")
+
 print()
 print(label)
 print()
@@ -70,34 +78,30 @@ print()
 print(f'nocc:{n_occ_spatial}, nvir:{n_vir_spatial}')
 print()
 
-# #spin-free
-# hbse_0,selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_v_spa, singEspa, tripEspa = \
-#  CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-# print()
-# print('CC-BSE in spin-free basis COMPLETED.')
-# print()
+#spin-free
+term1_diag_spa, term2_diag_spa, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, se_occ_spa, se_vir_spa, hbse_eig, singE_spa, tripE_spa = \
+ CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+print()
+print('CC-BSE in spin-free basis COMPLETED.')
+print()
 
-# #spin
-# selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, hbse_v_spin, singEspa, tripEspa = \
-#   CC_BSE_spin(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
-# print()
-# print('CC-BSE in spin basis COMPLETED.')
-# print()
-
+#spin
+hbse_sing, hbse_trip, term1_diag, term2_diag, selfener_occ_spin, selfener_vir_spin, fock_occ_spin, fock_vir_spin, se_occ_spin, se_vir_spin, val, singE_spin, tripE_spin= \
+  CC_BSE_spin(mol,mo,myhf,mycc,label,eV2au,n_occ_spatial,n_vir_spatial,n_occ_spin,n_vir_spin)
+print()
+print('CC-BSE in spin basis COMPLETED.')
+print()
 
 #debugging
-
 # print(f'selfener_occ_spa:{selfener_occ_spa}')
 # print(f'selfener_vir_spa:{selfener_vir_spa}')
 # print(f'selfener_occ_spin:{selfener_occ_spin}')
 # print(f'selfener_vir_spin:{selfener_vir_spin}')
 # print()
-# helper.count_matches(selfener_occ_spa,  selfener_occ_spin, "occ self-energy")
-# helper.count_matches(selfener_vir_spa,  selfener_vir_spin, "vir self-energy")
+
+# # Fock matrix check - printing the fock matrix
 # print()
-# helper.count_matches(fock_occ_spa,  fock_occ_spin, "occ fockener")
-# helper.count_matches(fock_vir_spa,  fock_vir_spin, "vir fockener")
-# print()
+# print('FOCK MATRIX CHECK')
 # print(f'fock_occ_spa:{np.diag(fock_occ_spa)[:10]/eV2au}')
 # print(f'fock_vir_spa:{np.diag(fock_vir_spa)[:10]/eV2au}')
 
@@ -109,9 +113,9 @@ print()
 #print(se_occ_spin)
 #print(se_vir_spin)
 
-# helper.count_matches(se_occ_spa,  se_occ_spin, "occ self-energy+fockener")
-# helper.count_matches(se_vir_spa,  se_vir_spin, "vir self-energy+fockener")
-# print()
+helper.count_matches(se_occ_spa,  se_occ_spin, "occ self-energy+fockener")
+helper.count_matches(se_vir_spa,  se_vir_spin, "vir self-energy+fockener")
+print()
 # helper.count_matches(hbse_v_spa, hbse_v_spin, "hbse")
 
 
@@ -127,21 +131,59 @@ print()
 # print('Standard RPA calculation COMPLETED.')
 # print()
 
-# GW-BSE calculations from RPA
-#print("Starting GW-BSE calculation")
-#singEspa = GW_BSE(mol,myhf,rpa_X,rpa_Y,rpa_eig,n_occ_spatial)
-#print(np.sort(singEspa)/eV2au)
-#print('GW-BSE calculation COMPLETED.')
+#GW-BSE calculations from RPA
+# print("Starting GW-BSE calculation")
+# singEspa = GW_BSE(mol,myhf,rpa_X,rpa_Y,rpa_eig,n_occ_spatial)
+# print(np.sort(singEspa)/eV2au)
+# print('GW-BSE calculation COMPLETED.')
 # print()
 
 print()
-print('Starting Orca RPA calculation.')
+print('Starting Orca RPA calculation; SingEner:')
+singEORCA, horca, A, B, t2_rpa = RPA_ORCA_all(mol,myhf,n_occ_spatial)
+print(singEORCA[:5]/eV2au)
 print()
-singEspa = RPA_spatial(mol,myhf,n_occ_spatial)
-# print(np.sort(singEspa)[:5]/eV2au)
+
 print()
-print('Orca RPA calculation COMPLETED')
+print('Starting RPA in Chris paper; SingEner, TripEner:')
+singEPaper, tripEPaper, hrpa66 = RPA_spatial66(mol,myhf,n_occ_spatial,A,B,t2_rpa)
+print(singEPaper[:5]/eV2au)
+print(tripEPaper[:5]/eV2au)
 print()
+
+
+print()
+diff = RPAselfConsisCheck(horca, hrpa66)
+print(f'RPA Self Consistency Check:{diff}')
+
+
+with open("results.txt", "a", encoding="utf-8") as f:
+    f.write(f"{label}\n")
+    
+    f.write('CC-BSE in spin-free basis; SingEner, TripEner:\n')
+    
+    f.write(f"{singE_spa[:5]/eV2au}\n")
+    f.write(f"{tripE_spa[:5]/eV2au}\n")
+    f.write("\n")
+
+    f.write('Starting Orca RPA calculation; SingEner:\n')
+    singEORCA, horca, A, B, t2_rpa = RPA_ORCA_all(mol,myhf,n_occ_spatial)
+    f.write(f"{singEORCA[:5]/eV2au}\n")
+    f.write("\n")
+
+    f.write('Starting RPA in Chris paper; SingEner, TripEner:\n')
+    singEPaper, tripEPaper, hrpa66 = RPA_spatial66(mol,myhf,n_occ_spatial,A,B,t2_rpa)
+    f.write(f"{singEPaper[:5]/eV2au}\n")
+    f.write(f"{tripEPaper[:5]/eV2au}\n")
+
+    diff = RPAselfConsisCheck(horca, hrpa66)
+    f.write(f"RPA Self-Consistency Check: {diff}")
+    f.write("\n\n")
+
+
+
+
+
 
 
 
