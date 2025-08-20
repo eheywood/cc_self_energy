@@ -47,7 +47,7 @@ def RPA_ORCA_all(mol,myhf,n_occ) -> np.ndarray:
   t2 = Y@np.linalg.inv(X)
   t2_4d = t2.reshape(nc,nv,nc,nv)
   t2_4d = t2_4d.transpose(0,2,1,3)
-  t2 = t2.reshape(nc*nv,nc*nv)
+  t2 = t2_4d.reshape(nc*nv,nc*nv)
 
   hsing = A + B@t2
 
