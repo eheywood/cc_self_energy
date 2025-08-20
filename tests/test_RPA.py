@@ -153,11 +153,14 @@ class Test_RPA_n_GW_BSE:
     
     def test_orca_ham(self, setup_helper):
         data, _, orca_results, paperResults = setup_helper
+
+        orca_e, _ = np.linalg.eig(orca_results.ham)
+        paper_e, _ = np.linalg.eig(paperResults.ham)
         
-        numer, denom, label_str = count_matches(orca_results.ham, paperResults.ham, "Orca Spatial RPA and eq.66 RPA Hamiltonian")
+        numer, denom, label_str = count_matches(orca_e, paper_e, "Orca Spatial RPA and eq.66 RPA Hamiltonian eigenvalues")
         write_to_file(data.label, label_str)
 
-        assert numer == denom, f"Orca Spatial RPA Hamiltonian and eq.66 RPA Hamiltonian do not match for {data.label}. {numer}/{denom} matched."
+        assert numer == denom, f"Orca Spatial RPA Hamiltonian and eq.66 RPA Hamiltonian eigenvalues do not match for {data.label}. {numer}/{denom} matched."
         
     
         

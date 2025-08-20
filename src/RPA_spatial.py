@@ -102,8 +102,8 @@ def RPA_spatial66(mol,myhf,n_occ,t2):
   SingEner, v = np.linalg.eig(hsing.reshape((nc*nv, nc*nv)))
   TripEner, v = np.linalg.eig(htrip.reshape((nc*nv, nc*nv)))
 
-  SingEner = np.sort(np.real_if_close(SingEner))
-  TripEner = np.sort(np.real_if_close(TripEner))
+  SingEner = np.sort(np.real(SingEner))
+  TripEner = np.sort(np.real(TripEner))
   return SingEner,TripEner, hsing.reshape((nc*nv, nc*nv)) # in eV
 
 def RPAselfConsisCheck(horca, hrpa66):

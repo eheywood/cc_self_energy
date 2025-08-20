@@ -115,6 +115,16 @@ def setup_helper(request):
     yield data, spat_results, spin_results
 
     # Cleanup after tests
+    write_to_file(data.label, f"\nIonisation Potentials(IP) and Electron Affinities(EA)  \n")
+
+    ip = spat_results.se_occ
+    ip = str(np.sort(ip)[:5]*hartree_ev) if (ip.shape[0]>5) else str(np.sort(ip)*hartree_ev)
+    ea = spat_results.se_vir
+    ea = str(np.sort(ea)[:5]*hartree_ev) if (ea.shape[0]>5) else str(np.sort(ea)*hartree_ev)
+    ionisation_potential = "    IP: " + ip
+    electron_affinity = "    EA: " + ea
+    write_to_file(data.label, ionisation_potential)
+    write_to_file(data.label, electron_affinity)
 
     # write first 5 excitation energies to file
     write_to_file(data.label, f"\nSpin Excitation Energy Predictions \n")
