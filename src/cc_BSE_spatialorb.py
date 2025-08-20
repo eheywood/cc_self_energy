@@ -19,7 +19,7 @@ def get_selfenergy_spatial(t2,oovv, goovv):
     return selfener_occ, selfener_vir
 
 
-def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govvo, t2) -> np.ndarray:
+def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govvo, t2):
 
     F_abij = np.einsum('ab, ij -> iajb', F_ab, np.identity(n_occ),optimize='optimal')
     F_ijab = np.einsum('ij, ab -> iajb', F_ij, np.identity(n_vir),optimize='optimal')
@@ -31,7 +31,8 @@ def build_bse_spatial(F_ij, F_ab, n_occ, n_vir, goovv, oovv, ovvo, govvo, t2) ->
     
     for i in range(nspincase):
         H_bse[:,:,:,:,i] = F_abij - F_ijab
-
+        term1 = np.zeros((n_occ,n_vir,n_occ,n_vir))
+        term2 = np.zeros((n_occ,n_vir,n_occ,n_vir))
         if i == 0 or i == 3:
             # 0 = aaaa
             # 3 = bbbb
@@ -144,14 +145,13 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     
     term1_sum, term2_sum, hbse = build_bse_spatial(F_ij, F_ab, n_occ_spatial, n_vir_spatial, goovv, oovv, ovvo, govvo, t2)  # (n_occ,n_vir,n_occ,n_vir,nspincase)
 
-    
     SingEner, TripEner = build_hbse_singtrip(F_ij, F_ab, n_occ_spatial, n_vir_spatial, t2, govvo, govov, goovv)
 
-    hbse_eig, term1_diag, term2_diag = [], [], []
+    eig, term1_diag, term2_diag = [], [], []
     for i in range(4): 
         H = hbse[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
         val = np.linalg.eigvals(H) 
-        hbse_eig += list(np.real_if_close(val)) 
+        eig += list(np.real_if_close(val)) 
         H_term1 = term1_sum[:,:,:,:,i].reshape(n_occ_spatial*n_vir_spatial, n_occ_spatial*n_vir_spatial) 
         val1 = np.linalg.eigvals(H_term1) 
         term1_diag += list(np.real_if_close(val1)) 
@@ -172,4 +172,4 @@ def CC_BSE_spinfree(mol,mo,myhf,mycc,t2,label,eV2au,n_occ_spatial,n_vir_spatial,
     #     f.write(f"Triplet exci./eV: {np.sort(np.real(tripE))[:10] / eV2au}\n")
     #     f.write("\n")
         
-    return term1_diag, term2_diag, selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, hbse_eig, SingEner, TripEner
+    return selfener_occ_spa, selfener_vir_spa, fock_occ_spa, fock_vir_spa, gfock_occ, gfock_vir, eig, SingEner, TripEner
